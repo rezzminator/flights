@@ -1,0 +1,53 @@
+name: publish
+
+# Merging the develop -> main pull request is the release: `publish` tags the
+# merge commit flights--v{version} and creates the GitHub release from the
+# version's CHANGELOG section. ci.yml gates the pull request before the merge;
+# this re-runs no test. No tag is pushed by hand.
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish
+    if: github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+      - name: the tag is new
+        run: |
+          version="$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' plugins/flights/.claude-plugin/plugin.json | head -n 1 | sed 's/^"version"[[:space:]]*:[[:space:]]*"//; s/"$//')"
+          [ -n "$version" ] || { echo "::error::no version in plugins/flights/.claude-plugin/plugin.json"; exit 1; }
+          tag="flights--v$version"
+          rc=0
+          git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::tag $tag already exists"
+            exit 1
+          elif [ "$rc" -ne 2 ]; then
+            echo "::error::could not look up tag $tag (git ls-remote exit $rc)"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+      - name: release notes from the changelog
+        run: |
+          awk -v heading="## [$VERSION]" 'index($0, heading) == 1 { found = 1; next } found && /^## \[/ { exit } found' CHANGELOG.md > notes.md
+          test -s notes.md
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" \
+            --target "${{ github.event.pull_request.merge_commit_sha }}" \
+            --title "flights $VERSION" --notes-file notes.md

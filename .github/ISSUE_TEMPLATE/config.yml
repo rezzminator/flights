@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: No map, or a Codebase map unavailable line
+    url: https://github.com/rezzminator/flights/blob/develop/SUPPORT.md
+    about: Outside a git repository, no commit yet, go missing, a sub-agent type outside the list; SUPPORT.md covers each.
+  - name: A security problem
+    url: https://github.com/rezzminator/flights/security/advisories/new
+    about: Report it privately, never in a public issue (see SECURITY.md).

@@ -1,0 +1,24 @@
+{
+  "name": "flights",
+  "version": "0.1.0",
+  "description": "Claude Code plugin for a codebase map read from each package's front door — one line per package folder, given to the main chat at session start and to the flights builder agents at their start, cached per commit",
+  "license": "MIT",
+  "author": {
+    "name": "rezzminator · Professor",
+    "url": "https://github.com/rezzminator/professor"
+  },
+  "repository": "https://github.com/rezzminator/flights",
+  "homepage": "https://github.com/rezzminator/flights",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-code-hooks",
+    "codebase-map",
+    "repo-map",
+    "context-engineering",
+    "subagents",
+    "front-door",
+    "flights",
+    "professor"
+  ]
+}
