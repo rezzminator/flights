@@ -1,12 +1,18 @@
-"""Tests for codebase_map.render: order by the session's folder, the synopsis cut, the empty map and the budget footer."""
+"""Tests for codebase_map.render: order by read heat and the session's folder, the synopsis cut, the empty map and the
+budget footer."""
 
 import unittest
 
 from codebase_map import render
 
 HEADER = (
-    "Codebase map (each package folder and the first line of its front door's doc; reuse what exists,"
-    " and read a folder's front door before its other files):"
+    "Codebase map (no read history yet: the session's folder first, then by name; each package folder and the first"
+    " line of its front door's doc; reuse what exists, and read a folder's front door before its other files):"
+)
+HOT = (
+    "Codebase map (hottest first, by how often this repository's files are read, recent reads weighing more; each"
+    " package folder and the first line of its front door's doc; reuse what exists, and read a folder's front door"
+    " before its other files):"
 )
 H = len(HEADER)
 LONG = [("a", "x" * 60), ("b", "y" * 60)]
@@ -43,6 +49,25 @@ class RenderTest(unittest.TestCase):
         for name, entries, cwd, budget, want in rows:
             with self.subTest(name):
                 self.assertEqual(render.render(entries, cwd, budget), want)
+
+    def test_render_by_heat(self):
+        three = [("alpha", "A"), ("tools", "T"), ("web", "W")]
+        rows = [
+            ("the hottest folder first, a cold one after by the session's folder, then by name",
+             three, {"web": 2.0, "alpha": 0.5}, "tools", 4000, HOT + "\nweb/: W\nalpha/: A\ntools/: T"),
+            ("equal heat falls back to the session's folder, then the name",
+             three, {"web": 1.0, "alpha": 1.0, "tools": 1.0}, "web", 4000, HOT + "\nweb/: W\nalpha/: A\ntools/: T"),
+            ("heat only for folders off the map reads as no history",
+             three, {"gone": 3.0}, "tools", 4000, HEADER + "\ntools/: T\nalpha/: A\nweb/: W"),
+            ("zero heat reads as no history", three, {"web": 0.0}, ".", 4000, HEADER + "\nalpha/: A\ntools/: T\nweb/: W"),
+            ("the budget cut drops the coldest folders",
+             [("alpha", "x" * 60), ("tools", "y" * 60), ("web", "z" * 60)], {"web": 2.0, "tools": 1.0}, ".",
+             len(HOT) + 67 + 69 + 35,
+             HOT + "\nweb/: " + "z" * 60 + "\ntools/: " + "y" * 60 + "\n(1 more package folder not listed)"),
+        ]
+        for name, entries, heat, cwd, budget, want in rows:
+            with self.subTest(name):
+                self.assertEqual(render.render(entries, cwd, budget, heat), want)
 
 
 if __name__ == "__main__":

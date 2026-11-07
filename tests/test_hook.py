@@ -14,13 +14,18 @@ import unittest
 from unittest import mock
 
 import codebase_map
-from codebase_map import cache, hook
+from codebase_map import cache, command, heat, hook
 from codebase_map.plugin_log import PluginLog
-from tests import PACKAGE_DIR
+from tests import PACKAGE_DIR, PLUGIN_DIR
 
+HOT = (
+    "Codebase map (hottest first, by how often this repository's files are read, recent reads weighing more; each"
+    " package folder and the first line of its front door's doc; reuse what exists, and read a folder's front door"
+    " before its other files):"
+)
 HEADER = (
-    "Codebase map (each package folder and the first line of its front door's doc; reuse what exists,"
-    " and read a folder's front door before its other files):"
+    "Codebase map (no read history yet: the session's folder first, then by name; each package folder and the first"
+    " line of its front door's doc; reuse what exists, and read a folder's front door before its other files):"
 )
 LINES = {
     "alpha": "alpha/: Package alpha adds numbers.",
@@ -76,14 +81,31 @@ class HookTest(unittest.TestCase):
         nogo = os.path.join(self.root, "bin-without-go")
         os.makedirs(nogo)
         os.symlink(shutil.which("git"), os.path.join(nogo, "git"))
-        self.env_without_go = {**self.env, "PATH": nogo}
+        # The login shell is asked for go when PATH has none: one finding none, and one naming the real go.
+        self.env_without_go = {**self.env, "PATH": nogo, "SHELL": self.login_shell("finds-none", "exit 1")}
+        self.env_go_in_login_shell = {**self.env, "PATH": nogo,
+                                      "SHELL": self.login_shell("finds-go", f"printf '%s\\n' '{shutil.which('go')}'")}
         self.repo = self.make_repo("repo", FIXTURE, links=FIXTURE_LINKS)
         write_tree(self.repo, {"extra/__init__.py": '"""Untracked: never listed."""\n'})
 
+    def login_shell(self, name, body):
+        path = os.path.join(self.root, "shells", name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as handle:
+            handle.write(f"#!/bin/sh\n{body}\n")
+        os.chmod(path, 0o755)
+        return path
+
     def wait_for_builds(self):
-        # A build still running when its hook answered finishes before the fixture it reads is removed.
-        while cache.STARTED:
-            cache.STARTED.pop().wait(timeout=30)
+        # A build or seed still running when its hook answered finishes before the fixture it reads is removed; a seed
+        # the entry point's own process started is known by its marker.
+        while command.STARTED:
+            command.STARTED.pop().wait(timeout=30)
+        heat_dir = os.path.join(self.root, "cache", "flights", "heat")
+        until = time.monotonic() + 30
+        while os.path.isdir(heat_dir) and any(name.endswith(".seeding") for name in os.listdir(heat_dir)):
+            self.assertLess(time.monotonic(), until, f"a read heat seed never finished in {heat_dir}")
+            time.sleep(0.05)
 
     def git(self, cwd, *args):
         subprocess.run(["git", "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", *args],
@@ -124,11 +146,11 @@ class HookTest(unittest.TestCase):
             ("the main chat in a package folder gets that folder first",
              {"hook_event_name": "SessionStart", "source": "resume", "cwd": os.path.join(self.repo, "tools")},
              ("SessionStart", MAP_IN_TOOLS)),
-            ("a flights-foreman gets the map at its start", {**subagent, "agent_type": "flights-foreman"},
+            ("a flights:foreman gets the map at its start", {**subagent, "agent_type": "flights:foreman"},
              ("SubagentStart", MAP_AT_TOP)),
             ("a general-purpose sub-agent gets nothing at its start", {**subagent, "agent_type": "general-purpose"}, None),
-            ("a flights-lander's own session start after its compaction gets the map",
-             {**subagent, "hook_event_name": "SessionStart", "source": "compact", "agent_type": "flights-lander"},
+            ("a flights:lander's own session start after its compaction gets the map",
+             {**subagent, "hook_event_name": "SessionStart", "source": "compact", "agent_type": "flights:lander"},
              ("SessionStart", MAP_AT_TOP)),
             ("a general-purpose sub-agent's own session start gets nothing",
              {**subagent, "hook_event_name": "SessionStart", "source": "compact", "agent_type": "general-purpose"}, None),
@@ -186,10 +208,42 @@ class HookTest(unittest.TestCase):
         os.makedirs(os.path.dirname(path))
         with open(path, "w") as handle:
             json.dump({"toplevel": self.repo, "head": head, "entries": "not pairs"}, handle)
-        self.assertEqual(self.respond(self.repo, self.env_without_go), "Codebase map unavailable: go is not on PATH")
+        self.assertEqual(self.respond(self.repo, self.env_without_go),
+                         "Codebase map unavailable: go is not on PATH (nor in the login shell)")
         self.assertEqual(self.respond(self.repo, self.env), MAP_AT_TOP)
         self.assertEqual(self.respond(self.repo, self.env_without_go), MAP_AT_TOP)
         self.assertEqual(self.debug_events(), ["cache-miss", "cache-miss", "map-built", "cache-hit"])
+
+    def test_go_from_the_login_shell(self):
+        # A session started outside a login shell lacks the PATH its profile sets: the build asks the login shell.
+        self.assertEqual(self.respond(self.repo, self.env_go_in_login_shell), MAP_AT_TOP)
+
+    def test_read_recorder_runs_async(self):
+        # Every Read of every loop runs the recorder: registered async, it never holds the read back.
+        hooks_json = os.path.join(PLUGIN_DIR, "hooks", "hooks.json")
+        with open(hooks_json) as handle:
+            registered = json.load(handle)["hooks"]["PostToolUse"]
+        self.assertEqual(registered, [{"matcher": "Read", "hooks": [{
+            "type": "command", "command": 'python3 -I -B "${CLAUDE_PLUGIN_ROOT}/codebase_map"', "async": True, "timeout": 10,
+        }]}], hooks_json)
+
+    def test_reads_order_the_map(self):
+        def read(rel):
+            self.call(json.dumps({"hook_event_name": "PostToolUse", "tool_name": "Read", "cwd": self.repo,
+                                  "session_id": "s1", "tool_use_id": "t", "tool_input": {"file_path": os.path.join(self.repo, rel)},
+                                  "tool_response": {}}))
+        for rel in ("web/index.ts", "web/index.ts", "web/index.ts", "tools/nodoc/__init__.py", "outside/../../x.go"):
+            read(rel)
+        out = json.loads(self.call(json.dumps({"hook_event_name": "SessionStart", "source": "startup", "cwd": self.repo})))
+        rest = [LINES[k] for k in ("alpha", "beta", "engine", "linked", "odd", "tools")]
+        self.assertEqual(out["hookSpecificOutput"]["additionalContext"],
+                         "\n".join([HOT, LINES["web"], LINES["nodoc"], *rest]))
+        # The session start seeds the store once from this config's transcripts (none here), keeping the recorded reads.
+        self.wait_for_builds()
+        with open(heat.store_path(self.env, self.repo)) as handle:
+            stored = json.load(handle)
+        self.assertEqual((stored["seeded"], sorted(stored["files"]), round(stored["files"]["web/index.ts"][0], 3)),
+                         (True, ["tools/nodoc/__init__.py", "web/index.ts"], 3.0))
 
     def test_miss_past_the_deadline_builds_for_the_next_start(self):
         head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=self.env, capture_output=True, text=True,

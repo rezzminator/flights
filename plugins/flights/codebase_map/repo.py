@@ -1,4 +1,5 @@
-"""The git questions the map asks: the repository's top level, its HEAD commit, the tracked files it reads; and the read of a tracked front door."""
+"""The git questions the map asks: the repository's top level, its HEAD commit, the tracked files it reads; the read of a
+tracked front door; and the work tree found without git, for the read recorder."""
 
 from __future__ import annotations
 
@@ -23,6 +24,19 @@ def toplevel(cwd: str, env: dict[str, str], timeout: float) -> str | None:
     if result.code != 0:
         raise Unavailable(f"git rev-parse --show-toplevel failed (exit {result.code}): {result.last_error_line()}")
     return os.path.realpath(result.stdout.strip())
+
+
+def work_tree(cwd: str) -> str | None:
+    """The real path of the nearest folder at or above cwd holding a `.git` (a folder, or a worktree's file), found without
+    running git: the read recorder's cheap stand-in for toplevel. None when there is none."""
+    folder = os.path.realpath(cwd)
+    while True:
+        if os.path.lexists(os.path.join(folder, ".git")):
+            return folder
+        parent = os.path.dirname(folder)
+        if parent == folder:
+            return None
+        folder = parent
 
 
 def head(top: str, env: dict[str, str], timeout: float) -> str:

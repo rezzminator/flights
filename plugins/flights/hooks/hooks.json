@@ -22,6 +22,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I -B \"${CLAUDE_PLUGIN_ROOT}/codebase_map\"",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

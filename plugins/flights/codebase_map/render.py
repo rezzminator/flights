@@ -1,11 +1,16 @@
-"""The injected text: the header, one line per package folder with the session's folder first, the budget and its footer."""
+"""The injected text: the header naming the order, one line per package folder hottest first (the session's folder
+first when no package folder was read yet), the budget and its footer."""
 
 from __future__ import annotations
 
-HEADER = (
-    "Codebase map (each package folder and the first line of its front door's doc; reuse what exists,"
+_HEADER_REST = (
+    "each package folder and the first line of its front door's doc; reuse what exists,"
     " and read a folder's front door before its other files):"
 )
+# The header when some package folder has been read: the hottest first.
+HOT_HEADER = "Codebase map (hottest first, by how often this repository's files are read, recent reads weighing more; " + _HEADER_REST
+# The header when none has: the session's folder first, then by name.
+COLD_HEADER = "Codebase map (no read history yet: the session's folder first, then by name; " + _HEADER_REST
 EMPTY = (
     "Codebase map: this repository has no package folder"
     " (no Go package, Python package, index.ts/index.js or lib.rs/mod.rs is tracked)."
@@ -44,21 +49,25 @@ def _in_subtree(folder: str, cwd: str) -> bool:
     return cwd == "." or folder == cwd or folder.startswith(cwd + "/")
 
 
-def render(entries: list[tuple[str, str]], cwd: str, budget: int) -> str:
-    """The map: cwd's subtree first (both groups by folder name), cut to budget characters with a footer counting the rest.
+def render(entries: list[tuple[str, str]], cwd: str, budget: int, heat: dict[str, float] | None = None) -> str:
+    """The map: the hottest folder first, then cwd's subtree, then by folder name; cut to budget characters, the coldest
+    lines first, with a footer counting them.
 
-    cwd is the session's folder relative to the repository's top level ("." for the top).
+    cwd is the session's folder relative to the repository's top level ("." for the top); heat is each folder's read
+    heat, a folder it leaves out reads as 0.
     """
     if not entries:
         return EMPTY
-    ordered = sorted(entries, key=lambda entry: (not _in_subtree(entry[0], cwd), entry[0]))
+    heat = heat or {}
+    header = HOT_HEADER if any(heat.get(folder, 0.0) > 0 for folder, _ in entries) else COLD_HEADER
+    ordered = sorted(entries, key=lambda entry: (-heat.get(entry[0], 0.0), not _in_subtree(entry[0], cwd), entry[0]))
     lines = [f"{'.' if folder == '.' else folder}/: {_synopsis(text)}" for folder, text in ordered]
-    whole = "\n".join([HEADER, *lines])
+    whole = "\n".join([header, *lines])
     if len(whole) <= budget:
         return whole
     # Cut: the most leading lines that still leave room for the footer counting the rest.
-    kept, size = 0, len(HEADER)
+    kept, size = 0, len(header)
     while kept < len(lines) and size + 1 + len(lines[kept]) + 1 + len(footer(len(lines) - kept - 1)) <= budget:
         size += 1 + len(lines[kept])
         kept += 1
-    return "\n".join([HEADER, *lines[:kept], footer(len(lines) - kept)])
+    return "\n".join([header, *lines[:kept], footer(len(lines) - kept)])

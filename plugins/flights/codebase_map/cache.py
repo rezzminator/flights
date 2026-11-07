@@ -10,28 +10,28 @@ import hashlib
 import json
 import os
 import subprocess
-import sys
 import tempfile
 import time
 
-from . import build
-from .command import Unavailable
+from .command import STARTED, Unavailable, start_background
 from .plugin_log import PluginLog
 
 # Bumped when the entry format or what the readers report changes, so an older cache is never read.
 FORMAT = 1
 # How often a waiting hook looks for the build's result.
 POLL_SECONDS = 0.05
-PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Builds this process started and has not reaped: one still building when the hook answers outlives it.
-STARTED: list[subprocess.Popen] = []
 
 
-def cache_dir(env: dict[str, str]) -> str:
+def cache_root(env: dict[str, str]) -> str:
+    """${XDG_CACHE_HOME:-$HOME/.cache}/flights, holding the map cache (map/) and the read heat (heat/)."""
     base = env.get("XDG_CACHE_HOME") or (os.path.join(env["HOME"], ".cache") if env.get("HOME") else "")
     if not base:
         raise Unavailable("neither XDG_CACHE_HOME nor HOME is set, so there is no cache directory")
-    return os.path.join(base, "flights", "map")
+    return os.path.join(base, "flights")
+
+
+def cache_dir(env: dict[str, str]) -> str:
+    return os.path.join(cache_root(env), "map")
 
 
 def cache_path(env: dict[str, str], top: str, head: str) -> str:
@@ -43,7 +43,7 @@ def _error_path(path: str) -> str:
     return path[: -len(".json")] + ".error"
 
 
-def _write(path: str, text: str) -> None:
+def write_file(path: str, text: str) -> None:
     # Written beside its final name and renamed into place, so a reader never sees half a file.
     handle, temp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".building-")
     try:
@@ -74,30 +74,20 @@ def run_build(top: str, head: str, env: dict[str, str], log: PluginLog) -> None:
     """The background build: the entries into the cache, or the reason it failed into the .error file beside it."""
     path = cache_path(env, top, head)
     try:
+        # Imported here: only the background build reads front doors, and the Read recorder's every call skips the readers.
+        from . import build
+
         started = time.monotonic()
         entries = build.entries(top, env)
         # Logged before the cache file lands, so the row precedes every hit it makes possible.
         log.record("debug", "map-built", f"built the map of {top} at {head[:12]}", "cache.py#run_build", None,
                    {"toplevel": top, "head": head, "folders": len(entries), "seconds": round(time.monotonic() - started, 3)})
-        _write(path, json.dumps({"toplevel": top, "head": head, "entries": entries}))
+        write_file(path, json.dumps({"toplevel": top, "head": head, "entries": entries}))
     except Exception as error:
         reason = str(error) if isinstance(error, Unavailable) else f"building the map failed: {type(error).__name__}: {error}"
         # Logged here: a build failing after its hook answered has no other reader.
         log.record("error", "map-build-failed", reason, "cache.py#run_build", None, {"toplevel": top, "head": head})
-        _write(_error_path(path), reason)
-
-
-def _start_build(top: str, head: str, env: dict[str, str]) -> subprocess.Popen:
-    argv = [sys.executable, "-I", "-B", PACKAGE_DIR, "build", top, head]
-    try:
-        build_process = subprocess.Popen(
-            argv, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            start_new_session=True, close_fds=True,
-        )
-    except OSError as error:
-        raise Unavailable(f"the map build could not start: {error}") from None
-    STARTED.append(build_process)
-    return build_process
+        write_file(_error_path(path), reason)
 
 
 def _reap(build_process: subprocess.Popen, deadline: float) -> None:
@@ -125,7 +115,7 @@ def entries(top: str, head: str, env: dict[str, str], deadline: float, log: Plug
         pass
     except OSError as error:
         raise Unavailable(f"the cache directory {os.path.dirname(path)} is unusable: {error}") from None
-    build_process = _start_build(top, head, env)
+    build_process = start_background(["build", top, head], env, "map build")
     while True:
         hit = load(path, top, head)
         if hit is not None:

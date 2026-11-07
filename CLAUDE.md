@@ -1,4 +1,4 @@
-# flights — a Claude Code plugin: a codebase map, one line per package folder read from its front door, injected into the main chat and the flights builder agents at their start
+# flights — a Claude Code plugin: the flights agent family that builds and lands work, and a codebase map, one line per package folder read from its front door, injected into the main chat and the flights builder agents at their start
 
 Every user installs from `main`: a map that silently goes missing leaves an agent writing a second copy of code that exists.
 
@@ -9,11 +9,13 @@ Where Vocabulary, Runtime or On demand disagrees with the code on a path, comman
 - spec: the plugin's promised behaviour · `README.md`
 - installable plugin: the folder the install copies whole · `plugins/flights/`
 - marketplace: this repository's own listing of its one plugin, named `professor` · `.claude-plugin/marketplace.json`
-- hooks: the `SessionStart` and `SubagentStart` command hooks, both running the package · `plugins/flights/hooks/hooks.json`
+- flights family: the `flights:*` agents, the `/flights:{spec|doctor}` commands and the `flights:lander-inventory` skill · `plugins/flights/agents/`, `plugins/flights/commands/`, `plugins/flights/skills/`
+- hooks: the `SessionStart` and `SubagentStart` command hooks and the async `PostToolUse` `Read` recorder, all running the package · `plugins/flights/hooks/hooks.json`
 - package: the map, stdlib-only Python; its front door names every other file · `plugins/flights/codebase_map/__init__.py`
 - map agent types: the sub-agent types that receive the map, the one list · `plugins/flights/codebase_map/hook.py` (`MAP_AGENT_TYPES`)
 - unavailable line: `Codebase map unavailable: {reason}`, what a loop receives when the map cannot be built · `plugins/flights/codebase_map/render.py`
-- cache: the entries per repository top level and `HEAD`, under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/` · `plugins/flights/codebase_map/cache.py`
+- cache: the map cache, entries per repository top level and `HEAD` under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/` · `plugins/flights/codebase_map/cache.py`
+- read heat: decayed read scores per file, one store per repository top level under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/heat/`, ordering the map hottest first · `plugins/flights/codebase_map/heat.py`
 - plugin-log: the logging library: level files, bounded rows, rotation · `plugins/flights/codebase_map/plugin_log.py`
 - tests: one unittest file per concern; `test_hook.py` builds a throwaway git repository and runs the real entry point, git and Go · `tests/`
 - release check: the version agrees in plugin.json and the README badge, and `CHANGELOG.md` has its dated section · `scripts/release-check.sh`, `Makefile`
