@@ -2,6 +2,23 @@
 
 Every release of flights. Versions follow [semantic versioning](https://semver.org); each release is the `main` commit tagged `flights--v<version>`, with a GitHub release carrying the section below.
 
+## [Unreleased]
+
+### Changed
+
+- The codebase map is a names-only two-level tree: every entry at the repository's root, folders first and then files, each group by name in byte order, and under each root folder, indented two spaces, its first 6 entries, then `… N more`. A folder's name ends in `/`. The entries are the paths `git ls-files --cached --others --exclude-standard` names that the work tree still holds, so untracked files that are not ignored show too, and a submodule shows as a folder. The header reads `Codebase map (every entry at this repository's root, and the first 6 entries of each folder under it; folders end in /; reuse what exists):`. A session started in a subfolder gets the same tree, from the root.
+- A map cached by 0.2.0 is never read: the cache entry format moved, so each commit's map rebuilds once.
+
+### Removed
+
+- The read-heat ordering: the asynchronous `PostToolUse` `Read` hook that recorded every read, the read scores and their one-time seed from transcripts, and their log rows.
+- The front-door doc lines: no Go, Python, TypeScript, JavaScript or Rust doc is read, and no text stands beside a name; the 4000-character cut and its footer are gone with them, and the root is listed whole.
+- The `go` requirement, with the background build's lookup of `go` through the login shell: the map needs only `python3` and `git`.
+
+### Migration
+
+- Delete `~/.cache/flights/heat/` (under `$XDG_CACHE_HOME/flights/heat/` when that is set): nothing reads it any more.
+
 ## [0.2.0] — 2026-11-07
 
 ### Added

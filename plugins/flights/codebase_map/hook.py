@@ -1,15 +1,15 @@
-"""The hook payload in, the hook JSON out: which loops receive the map, the map for the loop's folder, and each Read
-recorded into the read heat."""
+"""The hook payload in, the hook JSON out: which loops receive the map, and the map of the repository holding the
+loop's folder."""
 
 from __future__ import annotations
 
 import json
 import os
 
-from . import cache, heat, repo, seed
+from . import cache, repo
 from .command import Unavailable
 from .plugin_log import PluginLog
-from .render import MAP_BUDGET, UNAVAILABLE, render
+from .render import UNAVAILABLE, render
 
 # The sub-agent types that receive the map at their start, matched exactly; every other sub-agent receives nothing.
 MAP_AGENT_TYPES = frozenset({
@@ -40,13 +40,7 @@ def map_text(cwd: str, env: dict[str, str], deadline: float, log: PluginLog) -> 
     if top is None:
         return None
     head = repo.head(top, env, GIT_TIMEOUT)
-    entries = cache.entries(top, head, env, deadline, log)
-    folder = os.path.relpath(os.path.realpath(cwd), top)
-    store = heat.current(top, env, log)
-    if store is None or not store.seeded:
-        seed.start(top, env, log)
-    folder_heat = {} if store is None else heat.package_heat([folder for folder, _ in entries], store, heat.wall_clock())
-    return render(entries, "." if folder.startswith("..") else folder, MAP_BUDGET, folder_heat)
+    return render(cache.entries(top, head, env, deadline, log))
 
 
 def response(event: str, text: str) -> str:
@@ -54,11 +48,7 @@ def response(event: str, text: str) -> str:
 
 
 def respond(payload: dict, env: dict[str, str], deadline: float, log: PluginLog) -> str | None:
-    """The hook's stdout for payload, or None when this loop receives nothing; log records each unavailable map.
-    A PostToolUse (the Read recorder) answers nothing."""
-    if payload.get("hook_event_name") == "PostToolUse":
-        heat.record_read(payload, env, log, heat.wall_clock())
-        return None
+    """The hook's stdout for payload, or None when this loop receives nothing; log records each unavailable map."""
     if not receives_map(payload):
         return None
     # Claude Code runs the hook in the session's folder; a payload without cwd means that one.

@@ -44,7 +44,7 @@ def run(argv: list[str], cwd: str, env: dict[str, str], timeout: float) -> Resul
 
 
 def start_background(args: list[str], env: dict[str, str], what: str) -> subprocess.Popen:
-    """This package run detached with args (`build {top} {head}`, `seed {top}`), in its own session; tracked in STARTED.
+    """This package run detached with args (`build {top} {head}`), in its own session; tracked in STARTED.
     what names it in the Unavailable a failed start raises."""
     argv = [sys.executable, "-I", "-B", PACKAGE_DIR, *args]
     try:

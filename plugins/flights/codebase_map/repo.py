@@ -1,14 +1,10 @@
-"""The git questions the map asks: the repository's top level, its HEAD commit, the tracked files it reads; the read of a
-tracked front door; and the work tree found without git, for the read recorder."""
+"""The git questions the map asks: the repository's top level, its HEAD commit, and the paths it lists."""
 
 from __future__ import annotations
 
 import os
 
 from .command import Unavailable, run
-
-# Path components whose folders are never part of the map: hidden folders, vendored and fixture trees.
-SKIPPED_COMPONENTS = frozenset({"vendor", "node_modules", "testdata"})
 
 
 def _git_env(env: dict[str, str]) -> dict[str, str]:
@@ -26,19 +22,6 @@ def toplevel(cwd: str, env: dict[str, str], timeout: float) -> str | None:
     return os.path.realpath(result.stdout.strip())
 
 
-def work_tree(cwd: str) -> str | None:
-    """The real path of the nearest folder at or above cwd holding a `.git` (a folder, or a worktree's file), found without
-    running git: the read recorder's cheap stand-in for toplevel. None when there is none."""
-    folder = os.path.realpath(cwd)
-    while True:
-        if os.path.lexists(os.path.join(folder, ".git")):
-            return folder
-        parent = os.path.dirname(folder)
-        if parent == folder:
-            return None
-        folder = parent
-
-
 def head(top: str, env: dict[str, str], timeout: float) -> str:
     """The commit HEAD names: the cache key."""
     result = run(["git", "rev-parse", "--verify", "-q", "HEAD"], top, _git_env(env), timeout)
@@ -49,30 +32,21 @@ def head(top: str, env: dict[str, str], timeout: float) -> str:
     return result.stdout.strip()
 
 
-def skipped(path: str) -> bool:
-    """True for a path inside a hidden, vendored or fixture folder."""
-    parts = path.split("/")[:-1]
-    return any(part.startswith(".") or part in SKIPPED_COMPONENTS for part in parts)
-
-
-def tracked_files(top: str, env: dict[str, str], timeout: float) -> list[str]:
-    """Every tracked file the map may read, relative to top, outside skipped folders."""
-    result = run(["git", "ls-files", "-z"], top, _git_env(env), timeout)
+def listed_paths(top: str, env: dict[str, str], timeout: float) -> list[tuple[str, bool]]:
+    """(path relative to top, whether it is a folder) for every path git lists: tracked files and untracked ones not
+    ignored, each present in the work tree. git lists a submodule (a gitlink) and an untracked nested repository as one
+    path: the work tree holds a folder there, so it reads as a folder."""
+    result = run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], top, _git_env(env), timeout)
     if result.code != 0:
         raise Unavailable(f"git ls-files failed (exit {result.code}): {result.last_error_line()}")
-    return [path for path in result.stdout.split("\0") if path and not skipped(path)]
-
-
-def front_door(top: str, path: str) -> bytes | None:
-    """A tracked front door's bytes; None when the work tree no longer has it. OSError when it is no regular file inside
-    top: a tracked symlink to a FIFO or a device would block or never end the read, and one leaving top is no package doc."""
-    full = os.path.join(top, path)
-    if not os.path.lexists(full):
-        return None
-    real = os.path.realpath(full)
-    if os.path.commonpath([real, top]) != top:
-        raise OSError(f"{path} points outside the repository")
-    if not os.path.isfile(real):
-        raise OSError(f"{path} is not a regular file")
-    with open(real, "rb") as handle:
-        return handle.read()
+    listed = []
+    for path in result.stdout.split("\0"):
+        if not path:
+            continue
+        # An untracked nested repository is listed with a trailing /.
+        bare = path.rstrip("/")
+        full = os.path.join(top, bare)
+        if not os.path.lexists(full):
+            continue  # a tracked file the work tree no longer has
+        listed.append((bare, path.endswith("/") or (os.path.isdir(full) and not os.path.islink(full))))
+    return listed

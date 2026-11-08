@@ -2,7 +2,7 @@
 
 # flights
 
-**Claude Code plugin for the flights agents that build and land work — two foremen, a lander with its three reviewers, a speccer, /flights:spec and /flights:doctor — and a codebase map read from each package's front door, one line per package folder, hottest first by how often the repository's files are read, given to the main chat and the flights builder agents at their start, cached per commit**
+**Claude Code plugin for the flights agents that build and land work — two foremen, a lander with its three reviewers, a speccer, /flights:spec and /flights:doctor — and a codebase map, a names-only tree of every entry at the repository's root and the first 6 entries of each folder under it, given to the main chat and the flights builder agents at their start, cached per commit**
 
 [![CI](https://github.com/rezzminator/flights/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/rezzminator/flights/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.2.0-blue)](./CHANGELOG.md)
@@ -16,7 +16,7 @@
 
 ## Why
 
-An agent that does not know what a codebase already holds writes a second copy of it. flights ships the agents that build and land work, and hands every loop that builds code a map of what exists before it starts: one line per package folder, read from the package's front door — the doc comment its own authors wrote — never guessed from code.
+An agent that does not know what a codebase already holds writes a second copy of it. flights ships the agents that build and land work, and hands every loop that builds code a map of what exists before it starts: every entry at the repository's root and the first 6 entries of each folder under it, names only, from the paths git lists.
 
 ## Quick start
 
@@ -25,7 +25,7 @@ claude plugin marketplace add rezzminator/flights
 claude plugin install flights@professor
 ```
 
-Start a session in a git repository. Needs `python3` (3.9 or later) and `git`; a repository with Go modules needs `go`. Remove it with `claude plugin uninstall flights@professor`.
+Start a session in a git repository. Needs `python3` (3.9 or later) and `git`. Remove it with `claude plugin uninstall flights@professor`.
 
 ## The agents
 
@@ -52,48 +52,43 @@ The `effortControl` and `visibility` frontmatter keys take effect with the auto-
 ## The map
 
 ```text
-Codebase map (hottest first, by how often this repository's files are read, recent reads weighing more; each package folder and the first line of its front door's doc; reuse what exists, and read a folder's front door before its other files):
-internal/clock/: Package clock is the one time seam: every time call routes through a Clock.
-internal/store/: Package store keeps the index in SQLite.
-tools/: Tools for the release scripts.
-tools/legacy/: (no front door doc)
-web/: The web client's entry point.
-(12 more package folders not listed)
+Codebase map (every entry at this repository's root, and the first 6 entries of each folder under it; folders end in /; reuse what exists):
+.github/
+  workflows/
+docs/
+  design/
+  dev/
+  README.md
+pfm/
+  cmd/
+  internal/
+  scripts/
+  Makefile
+  go.mod
+  go.sum
+  … 3 more
+Makefile
+README.md
 ```
 
-| Language | A package folder | Its line |
-| --- | --- | --- |
-| Go | every package of every tracked `go.mod`'s module, from `go list` | the package doc's synopsis (its first sentence) |
-| Python | a folder with a tracked `__init__.py` | the first line of its docstring, read with `ast` |
-| TypeScript, JavaScript | a folder with a tracked `index.ts` or `index.js` | the first prose line of the comment opening the file |
-| Rust | a folder with a tracked `lib.rs` or `mod.rs` | the first line of its leading `//!` doc |
-
-A package with no doc shows `(no front door doc)`, so the gap is visible. Hidden folders and `vendor/`, `node_modules/` and `testdata/` trees are left out. The text stays within 4000 characters, each line within 200, and a footer counts the folders left out.
-
-### The order
-
-The hottest package folder comes first: the one whose files the loops in this repository read most, recent reads weighing more. The cut to 4000 characters then drops the coldest.
-
-- **Every read counts.** Each `Read` any loop makes — the main chat and every sub-agent — adds one to its file's score, recorded by an asynchronous `PostToolUse` hook that never slows the read. A file outside the session's repository, or inside a work tree nested in it (a submodule, a linked worktree), is not counted.
-- **Recent reads weigh more.** A score halves every 14 days; a file whose score falls below 0.01 is forgotten.
-- **A folder's heat** is the sum over the files whose nearest enclosing package folder it is: a read of `internal/clock/fake/fake.go` counts for `internal/clock/` when `internal/clock/fake/` is no package folder, never for `internal/` too.
-- **Ties**, and every folder never read, keep the old order: the session's own folder and its subfolders first, then by name.
-- **The first start** seeds the scores once, in the background within 15 seconds, from this Claude Code config's own transcripts of the repository (`${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/`), counting each `Read` of the last 30 days by its age.
-- **The header says which order you got.** With no read of any package folder yet, it reads `Codebase map (no read history yet: the session's folder first, then by name; …)`.
-- The scores are kept per repository top level, across commits, in `${XDG_CACHE_HOME:-$HOME/.cache}/flights/heat/`; they never change which map is cached.
+- **The root, whole.** Every entry at the repository's root, folders first, then files, each group sorted by name in byte order. A folder's name ends in `/`. There is no size cut.
+- **Each root folder, its first 6.** Under each root folder, indented two spaces, its own first 6 entries in the same order, then `… N more` when it holds more. Nothing deeper is listed.
+- **What git lists.** The entries are the paths `git ls-files --cached --others --exclude-standard` names — tracked files, and untracked files that are not ignored — that the work tree still holds. A submodule, or an untracked repository nested inside, shows as a folder.
+- **Names only.** No text stands beside a name.
+- A repository whose work tree holds no listed file gets `Codebase map: git lists no file in this repository's work tree.`
 
 ## How it works
 
-- **Who receives it.** The main chat at `SessionStart` (startup, resume, clear and compact). A sub-agent at `SubagentStart` only when its type is `flights:foreman`, `flights:foreman-sonnet`, `flights:lander`, `flights:hunter` or `flights:sub-lander`; every other sub-agent receives nothing. Every loop's reads are counted, whether or not it receives the map.
-- **Cached per commit.** The map is kept per repository top level and `HEAD` commit under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/`. A cached map is answered without running `go`. A new commit builds a new map.
+- **Who receives it.** The main chat at `SessionStart` (startup, resume, clear and compact). A sub-agent at `SubagentStart` only when its type is `flights:foreman`, `flights:foreman-sonnet`, `flights:lander`, `flights:hunter` or `flights:sub-lander`; every other sub-agent receives nothing.
+- **The same map wherever the session starts.** A session started in a subfolder gets the tree of the whole repository, from its root.
+- **Cached per commit.** The map is kept per repository top level and `HEAD` commit under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/`. A new commit builds a new map.
 - **Never slow.** The hook answers within 4.5 seconds. A map not yet cached is built in the background; when the build outlasts that, the loop is told the map is still building, and the next start finds it cached.
-- **`go` from your login shell.** A session started outside a login shell can lack the `PATH` your shell profile sets. When `go` is not on the hook's `PATH`, the background build asks your login shell once (`$SHELL -lc 'command -v go'`, `/bin/sh` without `SHELL`) and runs the `go` it names.
-- **A failure is said.** When the map cannot be built — no commit yet, `go` neither on `PATH` nor in the login shell, `go list` failing — the loop receives one line, `Codebase map unavailable: {reason}`, never nothing. Outside a git repository there is no codebase, and the loop receives nothing.
+- **A failure is said.** When the map cannot be built — no commit yet, `git` missing or failing — the loop receives one line, `Codebase map unavailable: {reason}`, never nothing. Outside a git repository there is no codebase, and the loop receives nothing.
 - **No settings.** There is nothing to configure.
 
 ## Logs
 
-Rows go to `$PLUGIN_LOG_DIR/flights/`, else `$HOME/.local/state/flights/logs/`: `errors.jsonl` for every unavailable map and every read or seed that failed, `warnings.jsonl` for a read score file found unusable and rebuilt and for transcripts a seed could not open, `debug.jsonl` for each cache hit, miss and build and each seed (`heat-seed-cut` when its 15 seconds ran out first).
+Rows go to `$PLUGIN_LOG_DIR/flights/`, else `$HOME/.local/state/flights/logs/`: `errors.jsonl` for every unavailable map and every build that failed, `debug.jsonl` for each cache hit, miss and build.
 
 ## Limits
 
@@ -102,7 +97,6 @@ Rows go to `$PLUGIN_LOG_DIR/flights/`, else `$HOME/.local/state/flights/logs/`: 
 - The map is read from the work tree when its commit is first seen; edits made after that show at the next commit.
 - The sub-agent types that receive the map are fixed in the plugin.
 - A sub-agent's own `SessionStart` after its compaction is told apart from the main chat's only when Claude Code names the sub-agent in it; when it does not, that sub-agent receives the map.
-- Other languages' packages are not listed.
 
 ## Help
 

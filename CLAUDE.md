@@ -1,4 +1,4 @@
-# flights — a Claude Code plugin: the flights agent family that builds and lands work, and a codebase map, one line per package folder read from its front door, injected into the main chat and the flights builder agents at their start
+# flights — a Claude Code plugin: the flights agent family that builds and lands work, and a codebase map, a names-only tree of the repository's root and each folder under it, injected into the main chat and the flights builder agents at their start
 
 Every user installs from `main`: a map that silently goes missing leaves an agent writing a second copy of code that exists.
 
@@ -10,14 +10,13 @@ Where Vocabulary, Runtime or On demand disagrees with the code on a path, comman
 - installable plugin: the folder the install copies whole · `plugins/flights/`
 - marketplace: this repository's own listing of its one plugin, named `professor` · `.claude-plugin/marketplace.json`
 - flights family: the `flights:*` agents, the `/flights:{spec|doctor}` commands and the `flights:lander-inventory` skill · `plugins/flights/agents/`, `plugins/flights/commands/`, `plugins/flights/skills/`
-- hooks: the `SessionStart` and `SubagentStart` command hooks and the async `PostToolUse` `Read` recorder, all running the package · `plugins/flights/hooks/hooks.json`
-- package: the map, stdlib-only Python; its front door names every other file · `plugins/flights/codebase_map/__init__.py`
+- hooks: the `SessionStart` and `SubagentStart` command hooks, both running the package · `plugins/flights/hooks/hooks.json`
+- package: the map, stdlib-only Python; `__init__.py`'s menu names every other file · `plugins/flights/codebase_map/__init__.py`
 - map agent types: the sub-agent types that receive the map, the one list · `plugins/flights/codebase_map/hook.py` (`MAP_AGENT_TYPES`)
 - unavailable line: `Codebase map unavailable: {reason}`, what a loop receives when the map cannot be built · `plugins/flights/codebase_map/render.py`
 - cache: the map cache, entries per repository top level and `HEAD` under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/` · `plugins/flights/codebase_map/cache.py`
-- read heat: decayed read scores per file, one store per repository top level under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/heat/`, ordering the map hottest first · `plugins/flights/codebase_map/heat.py`
 - plugin-log: the logging library: level files, bounded rows, rotation · `plugins/flights/codebase_map/plugin_log.py`
-- tests: one unittest file per concern; `test_hook.py` builds a throwaway git repository and runs the real entry point, git and Go · `tests/`
+- tests: one unittest file per concern; `test_hook.py` builds a throwaway git repository and runs the real entry point and git · `tests/`
 - release check: the version agrees in plugin.json and the README badge, and `CHANGELOG.md` has its dated section · `scripts/release-check.sh`, `Makefile`
 - CI workflows: the check, run on the `develop → main` pull request, and the publish on its merge · `.github/workflows/ci.yml`, `.github/workflows/publish.yml`
 
@@ -30,7 +29,7 @@ Where Vocabulary, Runtime or On demand disagrees with the code on a path, comman
 
 ## Local
 
-- Python 3.9 or later, git and Go on `PATH`; a missing one fails the tests, never skips them.
+- Python 3.9 or later and git on `PATH`; a missing one fails the tests, never skips them.
 - Done gate, green before every commit: `make test`, `make validate` (needs the `claude` CLI), `scripts/release-check.sh`.
 - Narrowest test: `python3 -B -m unittest tests.{file}.{Class}.{test}`.
 
@@ -51,7 +50,7 @@ Where Vocabulary, Runtime or On demand disagrees with the code on a path, comman
 
 - A failure never reads as absence: a loop that should receive the map receives it or the unavailable line, and the reason is logged; only outside a git repository does it receive nothing.
 - The hook never blocks the session: it answers within `CAP_SECONDS`, exits 0 on every path, and a slow build finishes in the background.
-- Stdlib Python only, run as `python3 -I -B`; each source file at most 240 lines, named in the front door's menu.
+- Stdlib Python only, run as `python3 -I -B`; each source file at most 240 lines, named in `__init__.py`'s menu.
 - A new behaviour comes with a test in `tests/` watched failing first; a test asserts the whole output string.
 - A tracked dev file stays outside `plugins/flights/`.
 
