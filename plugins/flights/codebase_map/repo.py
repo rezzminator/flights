@@ -1,4 +1,4 @@
-"""The git questions the map asks: the repository's top level, its HEAD commit, and the paths it lists."""
+"""The git questions the map asks: the repository's top level, its HEAD commit, and the paths it tracks."""
 
 from __future__ import annotations
 
@@ -32,21 +32,10 @@ def head(top: str, env: dict[str, str], timeout: float) -> str:
     return result.stdout.strip()
 
 
-def listed_paths(top: str, env: dict[str, str], timeout: float) -> list[tuple[str, bool]]:
-    """(path relative to top, whether it is a folder) for every path git lists: tracked files and untracked ones not
-    ignored, each present in the work tree. git lists a submodule (a gitlink) and an untracked nested repository as one
-    path: the work tree holds a folder there, so it reads as a folder."""
-    result = run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], top, _git_env(env), timeout)
+def tracked_paths(top: str, env: dict[str, str], timeout: float) -> list[str]:
+    """The lines `git ls-files` prints, the paths git tracks relative to top, quoted as git quotes them; the work tree may
+    no longer hold some."""
+    result = run(["git", "ls-files"], top, _git_env(env), timeout)
     if result.code != 0:
         raise Unavailable(f"git ls-files failed (exit {result.code}): {result.last_error_line()}")
-    listed = []
-    for path in result.stdout.split("\0"):
-        if not path:
-            continue
-        # An untracked nested repository is listed with a trailing /.
-        bare = path.rstrip("/")
-        full = os.path.join(top, bare)
-        if not os.path.lexists(full):
-            continue  # a tracked file the work tree no longer has
-        listed.append((bare, path.endswith("/") or (os.path.isdir(full) and not os.path.islink(full))))
-    return listed
+    return [line for line in result.stdout.split("\n") if line]

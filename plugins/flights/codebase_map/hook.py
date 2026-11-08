@@ -7,9 +7,8 @@ import json
 import os
 
 from . import cache, repo
-from .command import Unavailable
+from .command import UNAVAILABLE, Unavailable
 from .plugin_log import PluginLog
-from .render import UNAVAILABLE, render
 
 # The sub-agent types that receive the map at their start, matched exactly; every other sub-agent receives nothing.
 MAP_AGENT_TYPES = frozenset({
@@ -35,12 +34,13 @@ def receives_map(payload: dict) -> bool:
 
 
 def map_text(cwd: str, env: dict[str, str], deadline: float, log: PluginLog) -> str | None:
-    """The map for the repository holding cwd; None outside a git repository, which is no failure: there is no codebase to map."""
+    """The map for the repository holding cwd; None outside a git repository, which is no failure: there is no codebase to
+    map, and None when no tracked source file names anything, where ponytail too adds no map."""
     top = repo.toplevel(cwd, env, GIT_TIMEOUT)
     if top is None:
         return None
     head = repo.head(top, env, GIT_TIMEOUT)
-    return render(cache.entries(top, head, env, deadline, log))
+    return cache.map_for(top, head, env, deadline, log) or None
 
 
 def response(event: str, text: str) -> str:

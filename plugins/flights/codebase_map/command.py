@@ -13,6 +13,10 @@ PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 STARTED: list[subprocess.Popen] = []
 
 
+# The unavailable line a loop receives is this prefix and the reason.
+UNAVAILABLE = "Codebase map unavailable: "
+
+
 class Unavailable(Exception):
     """The map cannot be built; the message is the reason the injected line names."""
 

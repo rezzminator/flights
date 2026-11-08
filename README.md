@@ -2,7 +2,7 @@
 
 # flights
 
-**Claude Code plugin for the flights agents that build and land work — two foremen, a lander with its three reviewers, a speccer, /flights:spec and /flights:doctor — and a codebase map, a names-only tree of every entry at the repository's root and the first 6 entries of each folder under it, given to the main chat and the flights builder agents at their start, cached per commit**
+**Claude Code plugin for the flights agents that build and land work — two foremen, a lander with its three reviewers, a speccer, /flights:spec and /flights:doctor — and a codebase map, ponytail's symbol map ported: one line per source folder naming its exported functions, classes and types, within 2,000 characters, given to the main chat and the flights builder agents at their start, cached per commit**
 
 [![CI](https://github.com/rezzminator/flights/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/rezzminator/flights/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.2.0-blue)](./CHANGELOG.md)
@@ -16,7 +16,7 @@
 
 ## Why
 
-An agent that does not know what a codebase already holds writes a second copy of it. flights ships the agents that build and land work, and hands every loop that builds code a map of what exists before it starts: every entry at the repository's root and the first 6 entries of each folder under it, names only, from the paths git lists.
+An agent that does not know what a codebase already holds writes a second copy of it. flights ships the agents that build and land work, and hands every loop that builds code a map of what exists before it starts: ponytail's codebase map, one line per source folder naming the functions, classes and types its files define.
 
 ## Quick start
 
@@ -52,35 +52,30 @@ The `effortControl` and `visibility` frontmatter keys take effect with the auto-
 ## The map
 
 ```text
-Codebase map (every entry at this repository's root, and the first 6 entries of each folder under it; folders end in /; reuse what exists):
-.github/
-  workflows/
-docs/
-  design/
-  dev/
-  README.md
-pfm/
-  cmd/
-  internal/
-  scripts/
-  Makefile
-  go.mod
-  go.sum
-  … 3 more
-Makefile
-README.md
+Codebase map (what already exists; reuse it, read a file only when you need its details):
+components/: Button, Card, Dialog, Field, Menu, Modal, Select, Table, Tabs
+lib/: load, fetch, Store
+app/: Run, Serve, Server
+src/: parse, Token, Lexer, self.helper
+web/: render, VERSION, Page
+(2 more folders not listed)
 ```
 
-- **The root, whole.** Every entry at the repository's root, folders first, then files, each group sorted by name in byte order. A folder's name ends in `/`. There is no size cut.
-- **Each root folder, its first 6.** Under each root folder, indented two spaces, its own first 6 entries in the same order, then `… N more` when it holds more. Nothing deeper is listed.
-- **What git lists.** The entries are the paths `git ls-files --cached --others --exclude-standard` names — tracked files, and untracked files that are not ignored — that the work tree still holds. A submodule, or an untracked repository nested inside, shows as a folder.
-- **Names only.** No text stands beside a name.
-- A repository whose work tree holds no listed file gets `Codebase map: git lists no file in this repository's work tree.`
+This is ponytail's codebase map, its `hooks/ponytail-map.js` ported to Python with the same output (MIT, notice in [THIRD_PARTY_NOTICES.md](./plugins/flights/THIRD_PARTY_NOTICES.md)); the sample is shortened and its names are invented.
+
+- **One line per folder.** `{folder}/: {names}`, the root as `./`, folders in the order their first file sorts.
+- **What a name is.** The top-level definitions each tracked source file declares, matched by a pattern per language: Python `def`, `async def` and `class`; JavaScript and TypeScript `export` declarations and `export { … }` lists; Go exported functions, methods and types; Rust `pub` items; Ruby `def`, `class` and `module`; Java, Kotlin, PHP, Swift and C# classes, interfaces, enums and records. A name starting with `_` is left out.
+- **A few names per file.** Each file's first 3 names; in a folder of more than 8 files, 1 each; at most 30 names a line, then `, ...`.
+- **Shared code first.** Files whose path names util, helper, lib, common, shared, service, component, hook, core, model, schema or api come first, then the rest by name.
+- **2,000 characters.** A folder line that would pass the budget is left out and counted in `(N more folders not listed)`; a shorter line after it can still fit.
+- **Skipped.** Tests (`test/`, `tests/`, `__tests__/`, `spec/`, `test_*`, `*_test.*`, `*.test.*`, `*.spec.*`), generated, minified and declaration files (`*.gen.*`, `*.min.*`, `*.d.*`), built and vendored folders (`node_modules`, `dist`, `build`, `out`, `vendor`, `venv`, `.venv`, `__pycache__`, `coverage`, `.next`, `target`, `migrations`, `versions`, `fixtures`), symlinks, and paths holding anything but ASCII letters, digits and `_ . @ + $ ( ) [ ] / -`. Only the first 4,000 source files count, and only each file's first 65,536 characters are read.
+- **Tracked files only.** The files are the ones `git ls-files` names that the work tree still holds; untracked files are not mapped.
+- A repository whose tracked source files name nothing gets no map, as ponytail adds none.
 
 ## How it works
 
 - **Who receives it.** The main chat at `SessionStart` (startup, resume, clear and compact). A sub-agent at `SubagentStart` only when its type is `flights:foreman`, `flights:foreman-sonnet`, `flights:lander`, `flights:hunter` or `flights:sub-lander`; every other sub-agent receives nothing.
-- **The same map wherever the session starts.** A session started in a subfolder gets the tree of the whole repository, from its root.
+- **The same map wherever the session starts.** A session started in a subfolder gets the map of the whole repository, from its root.
 - **Cached per commit.** The map is kept per repository top level and `HEAD` commit under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/`. A new commit builds a new map.
 - **Never slow.** The hook answers within 4.5 seconds. A map not yet cached is built in the background; when the build outlasts that, the loop is told the map is still building, and the next start finds it cached.
 - **A failure is said.** When the map cannot be built — no commit yet, `git` missing or failing — the loop receives one line, `Codebase map unavailable: {reason}`, never nothing. Outside a git repository there is no codebase, and the loop receives nothing.
@@ -95,6 +90,8 @@ Rows go to `$PLUGIN_LOG_DIR/flights/`, else `$HOME/.local/state/flights/logs/`: 
 - Claude Code only: Codex and OpenCode receive no map, and load none of the agents, commands or skill from this plugin.
 - The agents hand work on to Professor's agents (`gitter` for every git write, `tracer`, `pcm`, `documenter`), and `/flights:doctor` reads runs through Professor's `pfm`; without Professor those hand-offs have no target.
 - The map is read from the work tree when its commit is first seen; edits made after that show at the next commit.
+- Patterns, not a parser: a nested or dynamically made definition is missed, as in ponytail.
+- Where it differs from ponytail: it maps git repositories only (no directory walk outside one), from the repository's root wherever the session starts, cached per commit rather than rebuilt at each start, and has no `PONYTAIL_MAP` or `PONYTAIL_MAP_CHARS` setting.
 - The sub-agent types that receive the map are fixed in the plugin.
 - A sub-agent's own `SessionStart` after its compaction is told apart from the main chat's only when Claude Code names the sub-agent in it; when it does not, that sub-agent receives the map.
 
@@ -108,4 +105,4 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
-[MIT](./LICENSE). Built and maintained with [Professor](https://github.com/rezzminator/professor).
+[MIT](./LICENSE). The map is ported from ponytail, MIT, Copyright (c) 2026 DietrichGebert: see [THIRD_PARTY_NOTICES.md](./plugins/flights/THIRD_PARTY_NOTICES.md). Built and maintained with [Professor](https://github.com/rezzminator/professor).

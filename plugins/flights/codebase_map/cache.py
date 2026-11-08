@@ -1,4 +1,4 @@
-"""The per-commit cache: a repository's entries keyed by its top level and HEAD, under
+"""The per-commit cache: a repository's map text keyed by its top level and HEAD, under
 ${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/. A hit runs no build. A miss starts the build as a
 detached background process and waits for it up to the hook's deadline; past it, the hook says the
 map is still building and the build finishes into the cache for the next start.
@@ -17,8 +17,8 @@ from .command import STARTED, Unavailable, start_background
 from .plugin_log import PluginLog
 
 # Bumped when the entry format changes, so an older cache is never read: 1 was 0.2.0's (folder, synopsis) pairs, 2 the
-# tree's (name, children). It is part of the key and stored in the entry, which load checks.
-FORMAT = 2
+# names-only tree's (name, children), 3 ponytail's map text. It is part of the key and stored in the entry, which load checks.
+FORMAT = 3
 # How often a waiting hook looks for the build's result.
 POLL_SECONDS = 0.05
 
@@ -52,12 +52,8 @@ def write_file(path: str, text: str) -> None:
         raise
 
 
-def _is_names(children: object) -> bool:
-    return isinstance(children, list) and all(isinstance(name, str) for name in children)
-
-
-def load(path: str, top: str, head: str) -> list[tuple[str, list[str] | None]] | None:
-    """The cached entries, or None when there is no usable entry for this format, top level and HEAD."""
+def load(path: str, top: str, head: str) -> str | None:
+    """The cached map text, or None when there is no usable entry for this format, top level and HEAD."""
     try:
         with open(path, encoding="utf-8") as handle:
             stored = json.load(handle)
@@ -65,28 +61,24 @@ def load(path: str, top: str, head: str) -> list[tuple[str, list[str] | None]] |
         return None
     if not isinstance(stored, dict) or (stored.get("format"), stored.get("toplevel"), stored.get("head")) != (FORMAT, top, head):
         return None
-    try:
-        loaded = [(name, children) for name, children in stored["entries"]]
-    except (KeyError, TypeError, ValueError):
-        return None  # a file of another shape is no usable entry: the miss rebuilds it in place
-    if not all(isinstance(name, str) and (children is None or _is_names(children)) for name, children in loaded):
-        return None
-    return loaded
+    text = stored.get("map")
+    # A file of another shape is no usable entry: the miss rebuilds it in place.
+    return text if isinstance(text, str) else None
 
 
 def run_build(top: str, head: str, env: dict[str, str], log: PluginLog) -> None:
-    """The background build: the entries into the cache, or the reason it failed into the .error file beside it."""
+    """The background build: the map text into the cache, or the reason it failed into the .error file beside it."""
     path = cache_path(env, top, head)
     try:
-        # Imported here: only the background build lists the repository's paths.
+        # Imported here: only the background build lists the repository's paths and reads its files.
         from . import build
 
         started = time.monotonic()
-        entries = build.entries(top, env)
+        text = build.map_text(top, env)
         # Logged before the cache file lands, so the row precedes every hit it makes possible.
         log.record("debug", "map-built", f"built the map of {top} at {head[:12]}", "cache.py#run_build", None,
-                   {"toplevel": top, "head": head, "entries": len(entries), "seconds": round(time.monotonic() - started, 3)})
-        write_file(path, json.dumps({"format": FORMAT, "toplevel": top, "head": head, "entries": entries}))
+                   {"toplevel": top, "head": head, "chars": len(text), "seconds": round(time.monotonic() - started, 3)})
+        write_file(path, json.dumps({"format": FORMAT, "toplevel": top, "head": head, "map": text}))
     except Exception as error:
         reason = str(error) if isinstance(error, Unavailable) else f"building the map failed: {type(error).__name__}: {error}"
         # Logged here: a build failing after its hook answered has no other reader.
@@ -103,15 +95,15 @@ def _reap(build_process: subprocess.Popen, deadline: float) -> None:
         pass
 
 
-def entries(top: str, head: str, env: dict[str, str], deadline: float, log: PluginLog) -> list[tuple[str, list[str] | None]]:
-    """The entries for top at head: from the cache, else built in the background and waited for until deadline."""
+def map_for(top: str, head: str, env: dict[str, str], deadline: float, log: PluginLog) -> str:
+    """The map text for top at head, '' when it names nothing: from the cache, else built in the background and waited for until deadline."""
     path = cache_path(env, top, head)
     hit = load(path, top, head)
     detail = {"toplevel": top, "head": head, "path": path}
     if hit is not None:
-        log.record("debug", "cache-hit", f"map of {top} at {head[:12]} read from the cache", "cache.py#entries", None, detail)
+        log.record("debug", "cache-hit", f"map of {top} at {head[:12]} read from the cache", "cache.py#map_for", None, detail)
         return hit
-    log.record("debug", "cache-miss", f"map of {top} at {head[:12]} not cached; building it", "cache.py#entries", None, detail)
+    log.record("debug", "cache-miss", f"map of {top} at {head[:12]} not cached; building it", "cache.py#map_for", None, detail)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         os.unlink(_error_path(path))

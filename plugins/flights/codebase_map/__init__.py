@@ -1,4 +1,5 @@
-"""codebase_map: the in-house codebase map, a names-only tree of the repository's root and each folder under it.
+"""codebase_map: the codebase map, ponytail's symbol map ported: one line per source folder naming its exported functions,
+classes and types, within 2000 characters.
 
 Claude Code runs `python3 -I -B {plugin}/codebase_map` (hooks/hooks.json) at the main chat's
 SessionStart and at each sub-agent's SubagentStart, with the hook payload on stdin; the map
@@ -8,12 +9,11 @@ cache miss starts.
 
 - __main__.py: puts the package's parent on sys.path, which `python3 -I` leaves out, and calls main.
 - hook.py: the hook payload in, the hook JSON out; which loops receive the map (MAP_AGENT_TYPES).
-- cache.py: the per-commit cache of a repository's entries; a miss starts the background build and waits for it.
-- build.py: a repository's entries: the names at its root and in each root folder, folders first.
-- repo.py: the git questions: the repository's top level, its HEAD, the paths git lists in its work tree.
-- command.py: the one door for running a command, the one for starting a background process, and Unavailable.
+- cache.py: the per-commit cache of a repository's map text; a miss starts the background build and waits for it.
+- build.py: the map text, ponytail's buildMap ported: the names each tracked source file defines, one line per folder.
+- repo.py: the git questions: the repository's top level, its HEAD, the paths git tracks.
+- command.py: the one door for running a command, the one for starting a background process, Unavailable and its line.
 - plugin_log.py: the plugin-log library: level files under $PLUGIN_LOG_DIR/flights (else ~/.local/state/flights/logs).
-- render.py: the injected text: the header, the tree of names, the empty map, the unavailable line.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import traceback
 
 from . import cache, hook
 from .plugin_log import PluginLog, log_dir
-from .render import UNAVAILABLE
+from .command import UNAVAILABLE
 
 PLUGIN = "flights"
 # The whole hook answers within this many seconds; a cache miss still building then says so.

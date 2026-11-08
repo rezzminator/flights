@@ -1,4 +1,4 @@
-# flights — a Claude Code plugin: the flights agent family that builds and lands work, and a codebase map, a names-only tree of the repository's root and each folder under it, injected into the main chat and the flights builder agents at their start
+# flights — a Claude Code plugin: the flights agent family that builds and lands work, and a codebase map, ponytail's symbol map ported (one line per source folder naming its exported functions, classes and types, within 2,000 characters), injected into the main chat and the flights builder agents at their start
 
 Every user installs from `main`: a map that silently goes missing leaves an agent writing a second copy of code that exists.
 
@@ -13,10 +13,11 @@ Where Vocabulary, Runtime or On demand disagrees with the code on a path, comman
 - hooks: the `SessionStart` and `SubagentStart` command hooks, both running the package · `plugins/flights/hooks/hooks.json`
 - package: the map, stdlib-only Python; `__init__.py`'s menu names every other file · `plugins/flights/codebase_map/__init__.py`
 - map agent types: the sub-agent types that receive the map, the one list · `plugins/flights/codebase_map/hook.py` (`MAP_AGENT_TYPES`)
-- unavailable line: `Codebase map unavailable: {reason}`, what a loop receives when the map cannot be built · `plugins/flights/codebase_map/render.py`
-- cache: the map cache, entries per repository top level and `HEAD` under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/` · `plugins/flights/codebase_map/cache.py`
+- unavailable line: `Codebase map unavailable: {reason}`, what a loop receives when the map cannot be built · `plugins/flights/codebase_map/command.py` (`UNAVAILABLE`)
+- cache: the map cache, the map text per repository top level and `HEAD` under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/` · `plugins/flights/codebase_map/cache.py`
+- port: ponytail's `{ponytail}/hooks/ponytail-map.js` map, ported behaviour-identical to stdlib Python; its MIT notice ships beside it · `plugins/flights/codebase_map/build.py`, `plugins/flights/THIRD_PARTY_NOTICES.md`
 - plugin-log: the logging library: level files, bounded rows, rotation · `plugins/flights/codebase_map/plugin_log.py`
-- tests: one unittest file per concern; `test_hook.py` builds a throwaway git repository and runs the real entry point and git · `tests/`
+- tests: one unittest file per concern; `test_hook.py` builds a throwaway git repository and runs the real entry point and git; its expected map and `test_build.py`'s expected values are ponytail's own output on the same input, captured once · `tests/`
 - release check: the version agrees in plugin.json and the README badge, and `CHANGELOG.md` has its dated section · `scripts/release-check.sh`, `Makefile`
 - CI workflows: the check, run on the `develop → main` pull request, and the publish on its merge · `.github/workflows/ci.yml`, `.github/workflows/publish.yml`
 
@@ -48,7 +49,7 @@ Where Vocabulary, Runtime or On demand disagrees with the code on a path, comman
 
 ## Code
 
-- A failure never reads as absence: a loop that should receive the map receives it or the unavailable line, and the reason is logged; only outside a git repository does it receive nothing.
+- A failure never reads as absence: a loop that should receive the map receives it or the unavailable line, and the reason is logged; only outside a git repository, or in one whose tracked source files name nothing (ponytail adds no map there either), does it receive nothing.
 - The hook never blocks the session: it answers within `CAP_SECONDS`, exits 0 on every path, and a slow build finishes in the background.
 - Stdlib Python only, run as `python3 -I -B`; each source file at most 240 lines, named in `__init__.py`'s menu.
 - A new behaviour comes with a test in `tests/` watched failing first; a test asserts the whole output string.
