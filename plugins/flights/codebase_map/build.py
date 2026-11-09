@@ -1,4 +1,5 @@
-"""The map text: ponytail's codebase map, ported from its hooks/ponytail-map.js (buildMap, namesIn) to stdlib Python.
+"""The map text: ponytail's codebase map, ported from its hooks/ponytail-map.js (buildMap, namesIn) to stdlib Python, and
+flight_map, this plugin's own selection of a linked worktree's changed folders from the same lines.
 
 Ported from ponytail @ 96608e078b2d5ea607c5c3b8b5a54d1c1fba6846, MIT License, Copyright (c) 2026 DietrichGebert; the
 notice is in the plugin's THIRD_PARTY_NOTICES.md. The port keeps its behaviour: the top-level functions, classes and
@@ -23,6 +24,8 @@ MAX_FILES = 4000
 # JS reads each file whole and keeps its first 65536 UTF-16 code units; this many bytes always hold them.
 READ_BYTES = 65536 * 4
 HEADER = "Codebase map (what already exists; reuse it, read a file only when you need its details):"
+FLIGHT_HEADER = ("Codebase map of the folders this worktree changed (what already exists; reuse it, read a file only when"
+                 " you need its details):")
 
 # JS's \s and String.prototype.trim set: its WhiteSpace and LineTerminator code points.
 JS_SPACE = "\t\n\v\f\r                  　﻿"
@@ -108,8 +111,14 @@ def source_files(paths: list[str]) -> list[str]:
     return sorted(kept[:MAX_FILES], key=lambda p: (not SHARED.search(p), _collation_key(p)))
 
 
-def build_map(top: str, paths: list[str]) -> str:
-    """buildMap over paths relative to top: the header and one line per folder, '' when no file names anything."""
+def folder_of(path: str) -> str:
+    """The folder a path relative to the top sits in, as posixpath.dirname names it, '.' at the root: a folder line's key."""
+    return posixpath.dirname(path) or "."
+
+
+def folder_lines(top: str, paths: list[str]) -> list[tuple[str, str]]:
+    """buildMap's folder lines over paths relative to top, before its budget: (folder, line) in its order, the folder as
+    folder_of names it."""
     folders: dict[str, list[list[str]]] = {}
     for path in source_files(paths):
         text = _read(os.path.join(top, path))
@@ -117,23 +126,49 @@ def build_map(top: str, paths: list[str]) -> str:
             continue
         names = names_in(path, text)
         if names:
-            folders.setdefault(posixpath.dirname(path) or ".", []).append(names)
-    lines: list[str] = []
-    used = skipped = 0
+            folders.setdefault(folder_of(path), []).append(names)
+    lines: list[tuple[str, str]] = []
     for folder, per_file in folders.items():
         # The first exports say what a file is; in a folder of many files one name each.
         names = list(dict.fromkeys(n for file_names in per_file for n in file_names[:1 if len(per_file) > 8 else 3]))
-        line = f"{folder}/: {', '.join(names[:30])}{', ...' if len(names) > 30 else ''}"
+        lines.append((folder, f"{folder}/: {', '.join(names[:30])}{', ...' if len(names) > 30 else ''}"))
+    return lines
+
+
+def _render(header: str, lines: list[str]) -> str:
+    """buildMap's budget: the header and each line that still fits in BUDGET characters, then the count left out; ''
+    when no line fits."""
+    kept: list[str] = []
+    used = skipped = 0
+    for line in lines:
         if used + len(line) > BUDGET:
             skipped += 1
             continue
-        lines.append(line)
+        kept.append(line)
         used += len(line) + 1
-    if not lines:
+    if not kept:
         return ""
-    return "\n".join([HEADER, *lines]) + (f"\n({skipped} more folders not listed)" if skipped else "")
+    return "\n".join([header, *kept]) + (f"\n({skipped} more folders not listed)" if skipped else "")
 
 
-def map_text(top: str, env: dict[str, str]) -> str:
-    """The map of the repository at top, from the paths git tracks, cut at MAX_FILES * 5 as ponytail cuts them."""
-    return build_map(top, repo.tracked_paths(top, env, BUILD_TIMEOUT)[:MAX_FILES * 5])
+def full_map(lines: list[tuple[str, str]]) -> str:
+    """buildMap's text from its folder lines: every folder inside the budget, '' when no file names anything."""
+    return _render(HEADER, [line for _, line in lines])
+
+
+def flight_map(lines: list[tuple[str, str]], paths: list[str]) -> str:
+    """The lines of the folders holding the changed paths alone, each path's own folder as folder_of names it, in
+    buildMap's order, under FLIGHT_HEADER and inside the same budget, the count after them only of changed folders left
+    out; '' when no changed folder has a line."""
+    changed = {folder_of(path) for path in paths}
+    return _render(FLIGHT_HEADER, [line for folder, line in lines if folder in changed])
+
+
+def build_map(top: str, paths: list[str]) -> str:
+    """buildMap over paths relative to top: the header and one line per folder, '' when no file names anything."""
+    return full_map(folder_lines(top, paths))
+
+
+def map_lines(top: str, env: dict[str, str]) -> list[tuple[str, str]]:
+    """The folder lines of the repository at top, from the paths git tracks, cut at MAX_FILES * 5 as ponytail cuts them."""
+    return folder_lines(top, repo.tracked_paths(top, env, BUILD_TIMEOUT)[:MAX_FILES * 5])

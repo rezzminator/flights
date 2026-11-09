@@ -86,7 +86,7 @@ class ShippedNamesTest(unittest.TestCase):
                 self.assertEqual(blocks(parts(path)[0])["name"], f"name: {want}\n", f"{path}: name")
 
     def test_map_reaches_shipped_agents(self):
-        want = {"flights:foreman", "flights:foreman-sonnet", "flights:lander", "flights:hunter", "flights:sub-lander"}
+        want = {"flights:foreman", "flights:foreman-sonnet", "flights:lander"}
         self.assertEqual(hook.MAP_AGENT_TYPES, want)
         shipped = {f"flights:{name}" for name in AGENT_NAMES}
         self.assertEqual(hook.MAP_AGENT_TYPES - shipped, set(), f"{AGENTS}: a map agent type no agent carries")

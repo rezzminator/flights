@@ -72,24 +72,41 @@ This is ponytail's codebase map, its `hooks/ponytail-map.js` ported to Python wi
 - **Tracked files only.** The files are the ones `git ls-files` names that the work tree still holds; untracked files are not mapped.
 - A repository whose tracked source files name nothing gets no map, as ponytail adds none.
 
+### In a linked worktree
+
+A session in a worktree `git worktree add` made gets the lines of the folders that worktree changed, and no others:
+
+```text
+Codebase map of the folders this worktree changed (what already exists; reuse it, read a file only when you need its details):
+lib/: load, fetch, Store
+web/: render, VERSION, Page
+```
+
+- **Changed since it branched.** The base is the merge-base of the worktree's `HEAD` and the main worktree's `HEAD`; a changed path is one `git diff --name-only --no-renames {base}` names (committed or not) or an untracked file git does not ignore; its folder is the path's own folder, `./` at the root.
+- **The full map's lines.** Each changed folder's line is its line in the full map, in the full map's order, inside the same 2,000 characters, then `(N more folders not listed)` counting only the changed folders left out.
+- **Names from the commit.** A folder holding only untracked files has no line, as the map names tracked files alone.
+- **Else the full map.** A worktree whose changes reach no folder with a line, a fresh one or one that changed only files in folders the map skips or that name nothing (a `tests/` folder, docs, config), gets the full map, and so does one whose changes git could not read; the main checkout always gets the full map.
+
 ## How it works
 
-- **Who receives it.** The main chat at `SessionStart` (startup, resume, clear and compact). A sub-agent at `SubagentStart` only when its type is `flights:foreman`, `flights:foreman-sonnet`, `flights:lander`, `flights:hunter` or `flights:sub-lander`; every other sub-agent receives nothing.
+- **Who receives it.** The main chat at `SessionStart` (startup, resume, clear and compact). A sub-agent at `SubagentStart` only when its type is `flights:foreman`, `flights:foreman-sonnet` or `flights:lander`; every other sub-agent receives nothing, the lander's reviewers included.
 - **The same map wherever the session starts.** A session started in a subfolder gets the map of the whole repository, from its root.
-- **Cached per commit.** The map is kept per repository top level and `HEAD` commit under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/`. A new commit builds a new map.
-- **Never slow.** The hook answers within 4.5 seconds. A map not yet cached is built in the background; when the build outlasts that, the loop is told the map is still building, and the next start finds it cached.
-- **A failure is said.** When the map cannot be built — no commit yet, `git` missing or failing — the loop receives one line, `Codebase map unavailable: {reason}`, never nothing. Outside a git repository there is no codebase, and the loop receives nothing.
+- **Cached per commit.** The map is kept per `HEAD` commit under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/`, one build for every work tree at that commit: the main checkout and its worktrees share it. A new commit builds a new map. A worktree's changed folders are read afresh at each start.
+- **A week of cache.** Each build that lands removes the cache's files last written more than 7 days ago: maps of commits left behind, failure reasons, and temp files a killed build left.
+- **Never slow.** The hook answers within 4.5 seconds; each `git` read it makes is bounded by one second. A map not yet cached is built in the background; when the build outlasts that, the loop is told the map is still building, and the next start finds it cached.
+- **A failure is said.** When the map cannot be built — no commit yet, `git` missing or failing — the loop receives one line, `Codebase map unavailable: {reason}`, never nothing. When a worktree's changed folders cannot be read, it gets the full map and the git error is logged as a warning. Outside a git repository there is no codebase, and the loop receives nothing.
 - **No settings.** There is nothing to configure.
 
 ## Logs
 
-Rows go to `$PLUGIN_LOG_DIR/flights/`, else `$HOME/.local/state/flights/logs/`: `errors.jsonl` for every unavailable map and every build that failed, `debug.jsonl` for each cache hit, miss and build.
+Rows go to `$PLUGIN_LOG_DIR/flights/`, else `$HOME/.local/state/flights/logs/`: `errors.jsonl` for every unavailable map and every build that failed, `warnings.jsonl` for each worktree whose changed folders could not be read (`flight-folders-unread`) and each cache prune that failed (`cache-prune-failed`), `debug.jsonl` for each cache hit, miss, build and prune.
 
 ## Limits
 
 - Claude Code only: Codex and OpenCode receive no map, and load none of the agents, commands or skill from this plugin.
 - The agents hand work on to Professor's agents (`gitter` for every git write, `tracer`, `pcm`, `documenter`), and `/flights:doctor` reads runs through Professor's `pfm`; without Professor those hand-offs have no target.
 - The map is read from the work tree when its commit is first seen; edits made after that show at the next commit.
+- Work trees at one commit share one build, read from whichever tree asked first: when that tree held uncommitted edits, the others see its names rather than the commit's — names it added, and none it removed — until the next commit.
 - Patterns, not a parser: a nested or dynamically made definition is missed, as in ponytail.
 - Where it differs from ponytail: it maps git repositories only (no directory walk outside one), from the repository's root wherever the session starts, cached per commit rather than rebuilt at each start, and has no `PONYTAIL_MAP` or `PONYTAIL_MAP_CHARS` setting.
 - The sub-agent types that receive the map are fixed in the plugin.

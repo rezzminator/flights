@@ -1,5 +1,6 @@
 """Tests for codebase_map.build, the port of ponytail's map: each expected value below is upstream's own answer, captured
-once by running ponytail's hooks/ponytail-map.js (namesIn, its sort, buildMap) on the same input."""
+once by running ponytail's hooks/ponytail-map.js (namesIn, its sort, buildMap) on the same input; FlightMapTest's alone
+are this plugin's own, flight_map having no ponytail counterpart."""
 
 import os
 import shutil
@@ -65,6 +66,27 @@ class BuildMapTest(unittest.TestCase):
         self.assertEqual(build.build_map(top, list(files)),
                          "Codebase map (what already exists; reuse it, read a file only when you need its details):\n"
                          "src/: ok, ok2, c, early")
+
+
+class FlightMapTest(unittest.TestCase):
+    def test_flight_map(self):
+        header = ("Codebase map of the folders this worktree changed (what already exists; reuse it, read a file only"
+                  " when you need its details):")
+        lines = [("lib", "lib/: load"), (".", "./: main"), ("app", "app/: Run"), ("web", "web/: render")]
+        # Four 994-character lines: two fit the 2000-character budget, so a third changed one is counted, an unchanged one is not.
+        long = [(folder, f"{folder}/: " + folder * 990) for folder in ("a", "b", "c", "d")]
+        rows = [
+            ("only the changed paths' folders, in the map's order", lines, ["web/index.ts", "app/main.go", "docs/guide.md"],
+             "\n".join([header, "app/: Run", "web/: render"])),
+            ("a path at the root is in '.'", lines, ["main.py"], "\n".join([header, "./: main"])),
+            ("a nested path names its own folder, not its parent's", lines, ["lib/sub/cache.py"], ""),
+            ("no changed folder has a line", lines, ["docs/guide.md", "new/fresh.py"], ""),
+            ("a changed folder past the budget is counted, an unchanged one is not", long, ["a/x.py", "b/x.py", "c/x.py"],
+             "\n".join([header, long[0][1], long[1][1], "(1 more folders not listed)"])),
+        ]
+        for name, given, changed, want in rows:
+            with self.subTest(name):
+                self.assertEqual(build.flight_map(given, changed), want)
 
 
 if __name__ == "__main__":

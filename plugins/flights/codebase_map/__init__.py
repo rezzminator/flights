@@ -8,10 +8,14 @@ no argument it answers the hook, with `build {toplevel} {head}` it is the backgr
 cache miss starts.
 
 - __main__.py: puts the package's parent on sys.path, which `python3 -I` leaves out, and calls main.
-- hook.py: the hook payload in, the hook JSON out; which loops receive the map (MAP_AGENT_TYPES).
-- cache.py: the per-commit cache of a repository's map text; a miss starts the background build and waits for it.
-- build.py: the map text, ponytail's buildMap ported: the names each tracked source file defines, one line per folder.
-- repo.py: the git questions: the repository's top level, its HEAD, the paths git tracks.
+- hook.py: the hook payload in, the hook JSON out; which loops receive the map (MAP_AGENT_TYPES); a linked worktree's
+  changed paths.
+- cache.py: the per-commit cache of a repository's folder lines, one per HEAD; a miss starts the background build and
+  waits for it; a landed build prunes week-old files.
+- build.py: the map text, ponytail's buildMap ported: the names each tracked source file defines, one line per folder;
+  flight_map, the changed folders' lines alone.
+- repo.py: the git questions: the repository's top level, its HEAD, the paths git tracks; a linked worktree's base and
+  the paths it changed.
 - command.py: the one door for running a command, the one for starting a background process, Unavailable and its line.
 - plugin_log.py: the plugin-log library: level files under $PLUGIN_LOG_DIR/flights (else ~/.local/state/flights/logs).
 """

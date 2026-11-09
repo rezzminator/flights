@@ -4,13 +4,20 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ## [Unreleased]
 
+### Added
+
+- In a linked git worktree the map lists only the folders that worktree changed: the paths `git diff --name-only --no-renames` names against the merge-base of its `HEAD` and the main worktree's `HEAD`, plus the untracked files git does not ignore, each as its folder. Their lines are the full map's, in its order, within the same 2,000 characters, then `(N more folders not listed)` counting the changed folders left out, under the header `Codebase map of the folders this worktree changed (what already exists; reuse it, read a file only when you need its details):`. A worktree whose changes reach no folder with a line gets the full map, and so does one whose git reads fail or time out, with a `flight-folders-unread` warning naming the git error; a folder holding only untracked files has no line. The main checkout's map is unchanged.
+- Each build that lands removes the map cache's `*.json`, `*.error` and `.building-*` files last written more than 7 days ago; a prune that fails is a `cache-prune-failed` warning and never fails the build.
+
 ### Changed
 
 - The codebase map is ponytail's symbol map, its `hooks/ponytail-map.js` ported to stdlib Python with the same output: one line per folder of tracked source files, `{folder}/: {names}`, naming the top-level functions, classes and exports each file defines (Python, JavaScript, TypeScript, Go, Rust, Ruby, Java, Kotlin, PHP, Swift, C#), each file's first 3 names and 1 each in a folder of more than 8, shared code (util, lib, service, component, hook, core, model, schema, api and the like) first, within a 2,000-character budget, then `(N more folders not listed)`. The header reads `Codebase map (what already exists; reuse it, read a file only when you need its details):`. Tests, generated, minified and vendored files, symlinks and untracked files are skipped; a repository whose source files name nothing gets no map. A session started in a subfolder gets the map of the whole repository, from its root. Ponytail's MIT notice ships in `plugins/flights/THIRD_PARTY_NOTICES.md`.
 - A map cached by 0.2.0 is never read: the cache entry format moved, so each commit's map rebuilds once.
+- The map is cached per `HEAD` commit alone, no longer per repository top level too: the main checkout and every worktree at one commit share one build. A build reads its own work tree, so another tree at the same commit can see a dirty tree's names rather than the commit's.
 
 ### Removed
 
+- The map at the `SubagentStart` of `flights:hunter` and `flights:sub-lander`: their runs are short and their briefs name their places by file and line. `flights:foreman`, `flights:foreman-sonnet` and `flights:lander` keep it.
 - The read-heat ordering: the asynchronous `PostToolUse` `Read` hook that recorded every read, the read scores and their one-time seed from transcripts, and their log rows.
 - The front-door doc lines: no Go, Python, TypeScript, JavaScript or Rust package doc is read, and no synopsis stands beside a folder; the 4000-character cut and its footer give way to the 2,000-character budget and `(N more folders not listed)`.
 - The `go` requirement, with the background build's lookup of `go` through the login shell: the map needs only `python3` and `git`.
@@ -18,6 +25,8 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 ### Migration
 
 - Delete `~/.cache/flights/heat/` (under `$XDG_CACHE_HOME/flights/heat/` when that is set): nothing reads it any more.
+- Nothing to delete under `~/.cache/flights/map/`: each build removes the files older than 7 days, so the older formats' files go by themselves within a week.
+- A hunter or sub-lander that needs a folder's names reads the files its brief names; nothing else changes for them.
 
 ## [0.2.0] — 2026-11-07
 

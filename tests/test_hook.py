@@ -78,6 +78,21 @@ MAP = "\n".join([
     "(2 more folders not listed)",
 ])
 UNTRACKED = {"notes.py": "def untracked():\n    pass\n"}
+# A small repository for the linked worktree: three mapped folders, lib/ first as shared code.
+FLIGHT_FIXTURE = {
+    "README.md": "# flight\n",
+    "lib/store.py": "def load():\n    pass\n",
+    "app/main.go": "package main\n\nfunc Run() {}\n",
+    "web/index.ts": "export function render() {}\n",
+}
+FULL_HEADER = "Codebase map (what already exists; reuse it, read a file only when you need its details):"
+FLIGHT_HEADER = ("Codebase map of the folders this worktree changed (what already exists; reuse it, read a file only when"
+                 " you need its details):")
+
+
+def cache_key(head):
+    # The cache file's name, the hash of the entry format and HEAD alone: one entry per commit, whichever tree built it.
+    return hashlib.sha256(f"4\0{head}".encode()).hexdigest()[:40] + ".json"
 
 
 def write_tree(root, files):
@@ -158,6 +173,8 @@ class HookTest(unittest.TestCase):
             ("a flights:foreman gets the map at its start", {**subagent, "agent_type": "flights:foreman"},
              ("SubagentStart", MAP)),
             ("a general-purpose sub-agent gets nothing at its start", {**subagent, "agent_type": "general-purpose"}, None),
+            ("a flights:hunter gets nothing at its start", {**subagent, "agent_type": "flights:hunter"}, None),
+            ("a flights:sub-lander gets nothing at its start", {**subagent, "agent_type": "flights:sub-lander"}, None),
             ("a flights:lander's own session start after its compaction gets the map",
              {**subagent, "hook_event_name": "SessionStart", "source": "compact", "agent_type": "flights:lander"},
              ("SessionStart", MAP)),
@@ -208,11 +225,11 @@ class HookTest(unittest.TestCase):
             return [json.loads(line) for line in handle]
 
     def test_cache_hit_runs_no_build(self):
-        # A names-only tree entry (format 2) under its own key and under this key: neither is read; the miss rebuilds
-        # the second in place, and the next start reads the map back.
-        old = {"format": 2, "toplevel": self.repo, "head": self.head, "entries": [["docs/", ["design/"]]]}
-        old_key = hashlib.sha256(f"2\0{self.repo}\0{self.head}".encode()).hexdigest()[:40]
-        path = cache.cache_path(self.env, self.repo, self.head)
+        # A map text entry (format 3) under its own key and under this key: neither is read; the miss rebuilds the
+        # second in place, and the next start reads the map back.
+        old = {"format": 3, "toplevel": self.repo, "head": self.head, "map": MAP}
+        old_key = hashlib.sha256(f"3\0{self.repo}\0{self.head}".encode()).hexdigest()[:40]
+        path = cache.cache_path(self.env, self.head)
         os.makedirs(os.path.dirname(path))
         for each in (os.path.join(os.path.dirname(path), f"{old_key}.json"), path):
             with open(each, "w") as handle:
@@ -225,12 +242,91 @@ class HookTest(unittest.TestCase):
         self.assertEqual(self.respond(self.repo, deadline=time.monotonic()),
                          f"Codebase map unavailable: the map for commit {self.head[:12]} is still building;"
                          " it goes on in the background and is ready at the next start")
-        path = cache.cache_path(self.env, self.repo, self.head)
+        path = cache.cache_path(self.env, self.head)
         until = time.monotonic() + 30
         while not os.path.exists(path):
             self.assertLess(time.monotonic(), until, f"the background build never wrote {path}")
             time.sleep(0.05)
         self.assertEqual(self.respond(self.repo), MAP)
+
+    def test_linked_worktree_maps_the_folders_it_changed(self):
+        main = self.make_repo("main", FLIGHT_FIXTURE)
+        flight = os.path.join(self.root, "flight")
+        self.git(main, "worktree", "add", "-q", "-b", "flight", flight)
+        full = "\n".join([FULL_HEADER, "lib/: load", "app/: Run", "web/: render"])
+        self.assertEqual(self.respond(flight), full, "a fresh linked worktree changed nothing: it gets the full map")
+        self.assertEqual(self.respond(main), full, "the main checkout gets the full map")
+        # The main checkout at the worktree's commit reads the worktree's build: one entry, one build.
+        cache_files = sorted(os.listdir(os.path.join(self.root, "cache", "flights", "map")))
+        self.assertEqual(cache_files, [cache_key(self.git(main, "rev-parse", "HEAD"))])
+        self.assertEqual([row["event"] for row in self.log_rows("debug.jsonl")], ["cache-miss", "map-built", "cache-hit"])
+        # Committed in web/, untracked in app/ and in new/ (no tracked file, so no line), a README edit at the root (no
+        # source, no line); lib/ unchanged.
+        write_tree(flight, {"web/index.ts": "export function render() {}\nexport function draw() {}\n"})
+        self.git(flight, "commit", "-q", "-am", "flight")
+        write_tree(flight, {"app/extra.go": "package main\n\nfunc Extra() {}\n", "new/fresh.py": "def fresh():\n    pass\n",
+                            "README.md": "# flight, edited\n"})
+        self.assertEqual(self.respond(flight), "\n".join([FLIGHT_HEADER, "app/: Run", "web/: render, draw"]))
+        # A file whose name git quotes (a non-ASCII byte) still names its own folder.
+        write_tree(flight, {"lib/café.md": "notes\n"})
+        self.assertEqual(self.respond(flight), "\n".join([FLIGHT_HEADER, "lib/: load", "app/: Run", "web/: render, draw"]))
+        # git failing a read the selection needs: the full map, and one warning naming git's error.
+        failing = os.path.join(self.root, "bin-failing-worktree")
+        os.makedirs(failing)
+        with open(os.path.join(failing, "git"), "w") as handle:
+            handle.write(f'#!/bin/sh\n[ "$1" = worktree ] && {{ echo "fatal: worktree list broke" >&2; exit 128; }}\n'
+                         f'exec "{shutil.which("git")}" "$@"\n')
+        os.chmod(os.path.join(failing, "git"), 0o755)
+        self.assertEqual(self.respond(flight, {**self.env, "PATH": failing}),
+                         "\n".join([FULL_HEADER, "lib/: load", "app/: Run", "web/: render, draw"]))
+        # The hook's deadline spent before the selection's reads: a timeout, never "nothing changed", so the full map.
+        self.assertEqual(self.respond(flight, deadline=time.monotonic()),
+                         "\n".join([FULL_HEADER, "lib/: load", "app/: Run", "web/: render, draw"]))
+        rows = self.log_rows("warnings.jsonl")
+        for row in rows:
+            row.pop("ts")
+        unread = {"plugin": "flights", "level": "warning", "event": "flight-folders-unread", "where": "hook.py#flight_paths",
+                  "detail": {"toplevel": flight}}
+        self.assertEqual(rows, [
+            {**unread, "msg": "the folders this worktree changed could not be read, so it gets the full map:"
+                              " git worktree list failed (exit 128): fatal: worktree list broke"},
+            {**unread, "msg": "the folders this worktree changed could not be read, so it gets the full map:"
+                              " `git rev-parse` took longer than 0s"},
+        ])
+
+    def test_build_prunes_week_old_cache_files(self):
+        directory = os.path.join(self.root, "cache", "flights", "map")
+        os.makedirs(directory)
+        week = 7 * 24 * 3600
+        # A minute past a week old is pruned, a minute short of it stays; a file the cache never writes stays at any age.
+        ages = {"old.json": week + 60, "old.error": week + 60, ".building-old": week + 60, "recent.json": week - 60,
+                "notes.txt": week + 60}
+        now = time.time()
+        for name, age in ages.items():
+            with open(os.path.join(directory, name), "w") as handle:
+                handle.write("{}")
+            os.utime(os.path.join(directory, name), (now - age, now - age))
+        self.assertEqual(self.respond(self.repo), MAP)
+        self.assertEqual(sorted(os.listdir(directory)), sorted(["notes.txt", "recent.json", cache_key(self.head)]))
+        self.assertEqual([row["event"] for row in self.log_rows("debug.jsonl")],
+                         ["cache-miss", "map-built", "cache-pruned"])
+        # A prune that fails is a warning; the build it follows has landed.
+        old = os.path.join(directory, "stale.json")
+        with open(old, "w") as handle:
+            handle.write("{}")
+        os.utime(old, (now - week - 60, now - week - 60))
+        log = PluginLog("flights", os.path.join(self.root, "logs", "flights"))
+        with mock.patch("os.unlink", side_effect=PermissionError(13, "Permission denied", old)):
+            cache.run_build(self.repo, self.head, self.env, log)
+        self.assertEqual(self.respond(self.repo), MAP)
+        rows = self.log_rows("warnings.jsonl")
+        for row in rows:
+            row.pop("ts")
+        self.assertEqual(rows, [{
+            "plugin": "flights", "level": "warning", "event": "cache-prune-failed",
+            "msg": f"pruning the map cache {directory} failed: [Errno 13] Permission denied: '{old}'",
+            "where": "cache.py#prune", "detail": {"directory": directory, "removed": 0},
+        }])
 
     def test_unavailable(self):
         unborn = self.make_repo("unborn", {"a.txt": ""}, commit=False)
