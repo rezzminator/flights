@@ -6,6 +6,7 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ### Added
 
+- The tracer and the reviewers ship in the plugin, moved from Professor: the agents `flights:tracer` (Sonnet, effort high), which answers numbered questions from code, `flights:sub-tracer` (Haiku, effort low), the reader it spawns per thread, and `flights:reviewer` and `flights:reviewer-pro` (Opus, effort high), which review a diff range with one tracer run and with up to three; the skill `flights:tracetree`, the tracer's kit, run from `${CLAUDE_PLUGIN_ROOT}/skills/tracetree/tracetree.py`; and the skill `/flights:tracer-use`, the manual of a tracer's caller, which both reviewers preload. With the tool-visibility-controller plugin installed, `flights:sub-tracer` and `flights:tracetree` are visible to `flights:tracer` and `flights:sub-tracer` alone.
 - In a linked git worktree the map lists only the folders that worktree changed: the paths `git diff --name-only --no-renames` names against the merge-base of its `HEAD` and the main worktree's `HEAD`, plus the untracked files git does not ignore, each as its folder. Their lines are the full map's, in its order, within the same 2,000 characters, then `(N more folders not listed)` counting the changed folders left out, under the header `Codebase map of the folders this worktree changed (what already exists; reuse it, read a file only when you need its details):`. A worktree whose changes reach no folder with a line gets the full map, and so does one whose git reads fail or time out, with a `flight-folders-unread` warning naming the git error; a folder holding only untracked files has no line. The main checkout's map is unchanged.
 - Each build that lands removes the map cache's `*.json`, `*.error` and `.building-*` files last written more than 7 days ago; a prune that fails is a `cache-prune-failed` warning and never fails the build.
 
@@ -24,6 +25,7 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ### Migration
 
+- Spawn `flights:tracer` where you spawned `tracer`, and `flights:reviewer` and `flights:reviewer-pro` where you spawned `reviewer` and `reviewer-pro`; preload `flights:tracer-use` where an agent preloaded `tracer:use`. The kit runs from `${CLAUDE_PLUGIN_ROOT}/skills/tracetree/tracetree.py`, no longer `~/.claude/skills/tracetree/tracetree.py`. Trace runs stay under `/tmp/{project}/tracer/`, so a run made before the move is still recalled.
 - Delete `~/.cache/flights/heat/` (under `$XDG_CACHE_HOME/flights/heat/` when that is set): nothing reads it any more.
 - Nothing to delete under `~/.cache/flights/map/`: each build removes the files older than 7 days, so the older formats' files go by themselves within a week.
 - A hunter or sub-lander that needs a folder's names reads the files its brief names; nothing else changes for them.

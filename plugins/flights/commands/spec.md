@@ -10,7 +10,7 @@ Two deliverables in the flight directory `$HOME/.local/state/pfm/flights/{projec
 
 ## S1 — Walk only what asking needs
 
-Read the child `CLAUDE.md` of every project the work touches (the root one you already hold): S2 must not re-ask what they settle. A fact a question needs goes to `Agent(subagent_type: "tracer")` as numbered questions, all probes in one message; end your message after spawning, the answers arrive on their own. The walk stops at what a good question needs: the speccer reads the material itself, so a map built here for it is reading paid twice.
+Read the child `CLAUDE.md` of every project the work touches (the root one you already hold): S2 must not re-ask what they settle. A fact a question needs goes to `Agent(subagent_type: "flights:tracer")` as numbered questions, all probes in one message; end your message after spawning, the answers arrive on their own. The walk stops at what a good question needs: the speccer reads the material itself, so a map built here for it is reading paid twice.
 
 A referent that does not exist, or two parts of the work that would edit one target, is a question for S2, never a silent fix.
 

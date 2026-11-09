@@ -9,7 +9,7 @@ Where Vocabulary, Runtime or On demand disagrees with the code on a path, comman
 - spec: the plugin's promised behaviour · `README.md`
 - installable plugin: the folder the install copies whole · `plugins/flights/`
 - marketplace: this repository's own listing of its one plugin, named `professor` · `.claude-plugin/marketplace.json`
-- flights family: the `flights:*` agents, the `/flights:{spec|doctor}` commands and the `flights:lander-inventory` skill · `plugins/flights/agents/`, `plugins/flights/commands/`, `plugins/flights/skills/`
+- flights family: the `flights:*` agents, the `/flights:{spec|doctor}` commands and the `flights:{lander-inventory|tracetree|tracer-use}` skills · `plugins/flights/agents/`, `plugins/flights/commands/`, `plugins/flights/skills/`
 - hooks: the `SessionStart` and `SubagentStart` command hooks, both running the package · `plugins/flights/hooks/hooks.json`
 - package: the map, stdlib-only Python; `__init__.py`'s menu names every other file · `plugins/flights/codebase_map/__init__.py`
 - map agent types: the sub-agent types that receive the map, the one list · `plugins/flights/codebase_map/hook.py` (`MAP_AGENT_TYPES`)
@@ -51,7 +51,7 @@ Where Vocabulary, Runtime or On demand disagrees with the code on a path, comman
 
 - A failure never reads as absence: a loop that should receive the map receives it or the unavailable line, and the reason is logged; only outside a git repository, or in one whose tracked source files name nothing (ponytail adds no map there either), does it receive nothing.
 - The hook never blocks the session: it answers within `CAP_SECONDS`, exits 0 on every path, and a slow build finishes in the background.
-- Stdlib Python only, run as `python3 -I -B`; each source file at most 240 lines, named in `__init__.py`'s menu.
+- The package is stdlib Python only, run as `python3 -I -B`; each of its source files at most 240 lines, named in `__init__.py`'s menu; a skill's kit (`skills/*/`) is stdlib Python too.
 - A new behaviour comes with a test in `tests/` watched failing first; a test asserts the whole output string.
 - A tracked dev file stays outside `plugins/flights/`.
 

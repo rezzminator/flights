@@ -40,14 +40,20 @@ Claude Code names each plugin agent `flights:{name}`: that is the `subagent_type
 | `flights:spec-walker` | Sonnet | spawned by the lander: a range of the request's numbered rows, each traced to its code |
 | `flights:sub-lander` | Haiku | spawned by the lander: names the diff removed that the tree still holds, and threads past the diff |
 | `flights:speccer` | Opus, effort xhigh | designs novel work with you before a build, through `/flights:spec` |
+| `flights:tracer` | Sonnet, effort high | answers numbered questions from code: its readers walk each thread hop by hop and its kit re-reads every quoted line from disk |
+| `flights:sub-tracer` | Haiku, effort low | spawned by the tracer: follows one thread of code and writes its hops |
+| `flights:reviewer` | Opus, effort high | reviews a diff range, proving every thread it touches safe up and downstream, with one tracer run |
+| `flights:reviewer-pro` | Opus, effort high | the same for a diff of 10,000+ code lines, with up to three tracer runs grouped by area |
 
 | Command or skill | What it does |
 | --- | --- |
 | `/flights:spec [work \| file]` | grills the request until nothing stays open; returns the `requirements.md` and `spec.md` paths, ready to build |
 | `/flights:doctor [session or agent id]` | measures a flight: landed lines per million input tokens, written and read per agent, the silent share, then where the reading went |
 | `flights:lander-inventory` | the lander's kit, `skills/lander-inventory/lander-inventory.py`: what a diff left behind (`LEFT`, `LITERAL`, `GONE` rows) and the review's spawn `PLAN` |
+| `flights:tracetree` | the tracer's kit, `skills/tracetree/tracetree.py`: opens a trace run, stores each reader's hops once, checks every quote against its file, waits for the whole tree and maps the components |
+| `/flights:tracer-use` | the manual of a tracer's caller, preloaded by both reviewers: when to trace, question shapes, drilling a node, the component map |
 
-The `effortControl` and `visibility` frontmatter keys take effect with the auto-effort and tool-visibility-controller plugins installed: the foremen's effort is then steered between medium and xhigh, the lander's three reviewers and its kit are visible to the lander alone, and the lander and speccer to the main chat alone. Without them Claude Code ignores those keys.
+The `effortControl` and `visibility` frontmatter keys take effect with the auto-effort and tool-visibility-controller plugins installed: the foremen's effort is then steered between medium and xhigh, the lander's three reviewers and its kit are visible to the lander alone, the sub-tracer and the tracetree kit to the tracers alone, and the lander and speccer to the main chat alone. Without them Claude Code ignores those keys.
 
 ## The map
 
@@ -103,8 +109,8 @@ Rows go to `$PLUGIN_LOG_DIR/flights/`, else `$HOME/.local/state/flights/logs/`: 
 
 ## Limits
 
-- Claude Code only: Codex and OpenCode receive no map, and load none of the agents, commands or skill from this plugin.
-- The agents hand work on to Professor's agents (`gitter` for every git write, `tracer`, `pcm`, `documenter`), and `/flights:doctor` reads runs through Professor's `pfm`; without Professor those hand-offs have no target.
+- Claude Code only: Codex and OpenCode receive no map, and load none of the agents, commands or skills from this plugin.
+- The agents hand work on to Professor's agents (`gitter` for every git write, `pcm`, `documenter`), and `/flights:doctor` reads runs through Professor's `pfm`; without Professor those hand-offs have no target.
 - The map is read from the work tree when its commit is first seen; edits made after that show at the next commit.
 - Work trees at one commit share one build, read from whichever tree asked first: when that tree held uncommitted edits, the others see its names rather than the commit's — names it added, and none it removed — until the next commit.
 - Patterns, not a parser: a nested or dynamically made definition is missed, as in ponytail.
