@@ -12,12 +12,18 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ### Changed
 
+- Both foremen build under a price law, since every request re-reads the whole context: reading is three batched rounds before the first edit (locate every name in one Bash call, read the exact ranges, fill what is left), the tests and the change go in one round with the new tests run red first, and once the tests are green the foreman runs one throwaway script that drives the change with the inputs its tests leave out. The return is 25 lines at most and gains `PROBES` (each probed input with its printed result) and `UNTESTED` (behaviour neither a test nor a probe ran); `TESTS` and `PROBES` answer `COULD NOT RUN: {first error line}` when they could not.
+- `flights:foreman` runs at effort medium, where it ran at high; `flights:foreman-sonnet` stays at high. `effortControl` still raises a foreman's effort one step at a failing test run, so the write after the red proof runs one level above the reading.
+- Both foremen carry a `tools:` list: `Read`, `Write`, `Edit`, `Bash`, `Skill`, `SendMessage` and the two forward-compaction tools. Their first request is about a fifth smaller (about 7,000 tokens), and `SendMessage` no longer costs a `ToolSearch` call first.
+- `/flights:doctor` checks a foreman's reading rounds (requests before the first edit past the third, read-only requests carrying one command) and its unprobed returns.
 - The codebase map is ponytail's symbol map, its `hooks/ponytail-map.js` ported to stdlib Python with the same output: one line per folder of tracked source files, `{folder}/: {names}`, naming the top-level functions, classes and exports each file defines (Python, JavaScript, TypeScript, Go, Rust, Ruby, Java, Kotlin, PHP, Swift, C#), each file's first 3 names and 1 each in a folder of more than 8, shared code (util, lib, service, component, hook, core, model, schema, api and the like) first, within a 2,000-character budget, then `(N more folders not listed)`. The header reads `Codebase map (what already exists; reuse it, read a file only when you need its details):`. Tests, generated, minified and vendored files, symlinks and untracked files are skipped; a repository whose source files name nothing gets no map. A session started in a subfolder gets the map of the whole repository, from its root. Ponytail's MIT notice ships in `plugins/flights/THIRD_PARTY_NOTICES.md`.
 - A map cached by 0.2.0 is never read: the cache entry format moved, so each commit's map rebuilds once.
 - The map is cached per `HEAD` commit alone, no longer per repository top level too: the main checkout and every worktree at one commit share one build. A build reads its own work tree, so another tree at the same commit can see a dirty tree's names rather than the commit's.
 
 ### Removed
 
+- A foreman's children: the `Agent` tool and the § Another area section are gone from both foremen, with the `TRACER` line of the return and `/flights:doctor`'s shared-file-children check. Three forms of delegation were benched against the foreman building alone (an Opus foreman designing for Sonnet children, two foremen sharing a worktree, a tracer reading first) and each cost more.
+- The foremen's effort buttons and their § Effort section: no foreman pressed one in 85 bench runs.
 - The map at the `SubagentStart` of `flights:hunter` and `flights:sub-lander`: their runs are short and their briefs name their places by file and line. `flights:foreman`, `flights:foreman-sonnet` and `flights:lander` keep it.
 - The read-heat ordering: the asynchronous `PostToolUse` `Read` hook that recorded every read, the read scores and their one-time seed from transcripts, and their log rows.
 - The front-door doc lines: no Go, Python, TypeScript, JavaScript or Rust package doc is read, and no synopsis stands beside a folder; the 4000-character cut and its footer give way to the 2,000-character budget and `(N more folders not listed)`.
@@ -25,6 +31,8 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ### Migration
 
+- Split work across areas from the main chat: several foremen may share one worktree on separate files. To give a foreman its children back, add `Agent` to its `tools:` line.
+- A caller that reads a foreman's return: `TRACER` is gone, `PROBES` and `UNTESTED` are new, and each `DECISIONS` item ends with how to flip it.
 - Spawn `flights:tracer` where you spawned `tracer`, and `flights:reviewer` and `flights:reviewer-pro` where you spawned `reviewer` and `reviewer-pro`; preload `flights:tracer-use` where an agent preloaded `tracer:use`. The kit runs from `${CLAUDE_PLUGIN_ROOT}/skills/tracetree/tracetree.py`, no longer `~/.claude/skills/tracetree/tracetree.py`. Trace runs stay under `/tmp/{project}/tracer/`, so a run made before the move is still recalled.
 - Delete `~/.cache/flights/heat/` (under `$XDG_CACHE_HOME/flights/heat/` when that is set): nothing reads it any more.
 - Nothing to delete under `~/.cache/flights/map/`: each build removes the files older than 7 days, so the older formats' files go by themselves within a week.

@@ -29,7 +29,8 @@ Each row names its transcript `path:line` (`pfm transcript show {id}`).
 | Full suites outside the lander | any full suite or gate a foreman ran |
 | Gate repeats | a lander full gate run again with no red gate between, or a red gate's fix checked by rerunning the gate instead of its failing tests |
 | Idle gaps | a gap over 5 minutes between an agent's records, with who waited on what |
-| Shared-file children | a child a foreman spawned for an area sharing a file with the foreman's own or a sibling's |
+| Reading rounds | a foreman's requests before its first edit, past the third; a read-only request of its that carries one command |
+| Unprobed returns | a foreman return whose `PROBES` line carries no printed result over a change that runs code |
 | Silent agents | agents that wrote nothing, ranked by input tokens |
 
 ## 3 The report

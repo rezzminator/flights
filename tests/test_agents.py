@@ -30,9 +30,12 @@ SONNET_FOREMAN_LINES = {
                    "are settled. Pass what flights:foreman takes. main chat → here → main chat → flights:lander → gitter. "
                    "Returns DONE or PARTIAL, decisions, files, test lines, outside changes.\n",
     "model": "model: sonnet\n",
+    "effort": "effort: high\n",
 }
-FOREMAN_KEYS = ["name", "description", "model", "effort", "effortControl"]
+FOREMAN_KEYS = ["name", "description", "model", "effort", "effortControl", "tools"]
 EFFORT_CONTROL = "effortControl:\n  floor: medium\n  ceiling: xhigh\n"
+FOREMAN_TOOLS = ("tools: Read, Write, Edit, Bash, Skill, SendMessage, mcp__forward-compaction__forward_compaction, "
+                 "mcp__forward-compaction__look_back\n")
 EFFORT_BUTTONS = [f"mcp__auto-effort__effort_{step}" for step in ("up", "down", "auto")]
 KIT_CALL = "python3 -I ${CLAUDE_PLUGIN_ROOT}/skills/lander-inventory/lander-inventory.py "
 TRACETREE_CALL = "python3 ${CLAUDE_PLUGIN_ROOT}/skills/tracetree/tracetree.py"
@@ -99,7 +102,7 @@ class ShippedNamesTest(unittest.TestCase):
 class FlightContractsTest(unittest.TestCase):
     def test_cast_tiers(self):
         cast = {
-            "foreman": ("opus", "high"), "foreman-sonnet": ("sonnet", "high"), "lander": ("opus", "medium"),
+            "foreman": ("opus", "medium"), "foreman-sonnet": ("sonnet", "high"), "lander": ("opus", "medium"),
             "hunter": ("opus", None), "spec-walker": ("sonnet", None), "sub-lander": ("haiku", None),
             "speccer": ("opus", "xhigh"), "reviewer": ("opus", "high"), "reviewer-pro": ("opus", "high"),
             "tracer": ("sonnet", "high"), "sub-tracer": ("haiku", "low"),
@@ -116,13 +119,15 @@ class FlightContractsTest(unittest.TestCase):
         self.assertEqual(sonnet_body, foreman_body, f"{agent('foreman-sonnet')}: the body drifted from {agent('foreman')}")
         foreman, sonnet = blocks(foreman_head), blocks(sonnet_head)
         for name, keys in (("foreman", list(foreman)), ("foreman-sonnet", list(sonnet))):
-            # effortControl lets auto-effort steer it; no tools line, so it inherits every tool and the effort buttons.
+            # effortControl lets auto-effort steer it at a failing test run; its tools line is the whole list it may
+            # call, with no Agent tool and no effort buttons.
             self.assertEqual(keys, FOREMAN_KEYS, f"{agent(name)}: frontmatter keys")
         for key in FOREMAN_KEYS:
             with self.subTest(key):
                 want = SONNET_FOREMAN_LINES.get(key, foreman[key])
                 self.assertEqual(sonnet[key], want, f"{agent('foreman-sonnet')}: {key}")
         self.assertEqual(foreman["effortControl"], EFFORT_CONTROL, f"{agent('foreman')}: effortControl")
+        self.assertEqual(foreman["tools"], FOREMAN_TOOLS, f"{agent('foreman')}: tools")
 
     def test_one_blocking_wait_past_ten_minutes(self):
         for name in ("foreman", "foreman-sonnet", "lander"):
