@@ -1,5 +1,5 @@
 # Every check ci.yml runs on a develop -> main pull request, run the same way
-# here first. The tests need python3 (3.9 or later), git and go on PATH; a
+# here first. The tests need python3 (3.9 or later) and git on PATH; a
 # missing one fails the run, never skips it. validate needs the claude CLI.
 MANIFEST := plugins/flights/.claude-plugin/plugin.json
 

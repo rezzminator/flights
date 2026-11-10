@@ -1,23 +1,174 @@
-"""A repository's map entries: every front-door reader over its tracked files, one entry per folder."""
+"""The map text: ponytail's codebase map, ported from its hooks/ponytail-map.js (buildMap, namesIn) to stdlib Python, and
+flight_map, this plugin's own selection of a linked worktree's changed folders from the same lines.
+
+Ported from ponytail @ 96608e078b2d5ea607c5c3b8b5a54d1c1fba6846, MIT License, Copyright (c) 2026 DietrichGebert; the
+notice is in the plugin's THIRD_PARTY_NOTICES.md. The port keeps its behaviour: the top-level functions, classes and
+exports of the tracked source files, one line per folder, inside a 2000-character budget, shared code first. Each JS
+regex is rewritten so Python matches what V8 does: ASCII \\w, JS's \\s and trim set, and multiline ^ after \\r, \\u2028
+and \\u2029 too.
+"""
 
 from __future__ import annotations
 
-from . import comment_doors, go_packages, py_packages, repo
+import os
+import posixpath
+import re
+import stat
 
-# A background build's own bound for each git or go command it runs.
+from . import repo
+
+# A background build's own bound for the git command it runs.
 BUILD_TIMEOUT = 120.0
+BUDGET = 2000
+MAX_FILES = 4000
+# JS reads each file whole and keeps its first 65536 UTF-16 code units; this many bytes always hold them.
+READ_BYTES = 65536 * 4
+HEADER = "Codebase map (what already exists; reuse it, read a file only when you need its details):"
+FLIGHT_HEADER = ("Codebase map of the folders this worktree changed (what already exists; reuse it, read a file only when"
+                 " you need its details):")
+
+# JS's \s and String.prototype.trim set: its WhiteSpace and LineTerminator code points.
+JS_SPACE = "\t\n\v\f\r                  　﻿"
+_S = f"[{JS_SPACE}]"
+# JS's multiline ^: the start, or after any LineTerminator (Python's re.M ^ follows \n only).
+_BOL = "(?:^|(?<=[\r  ]))"
 
 
-def entries(top: str, env: dict[str, str]) -> list[tuple[str, str]]:
-    """(folder, synopsis) sorted by folder; a folder two readers claim keeps the first: Go, Python, then comment doors."""
-    files = repo.tracked_files(top, env, BUILD_TIMEOUT)
-    found: dict[str, str] = {}
-    readers = (
-        go_packages.entries(top, files, env, BUILD_TIMEOUT),
-        py_packages.entries(top, files),
-        comment_doors.entries(top, files),
-    )
-    for reader in readers:
-        for folder, synopsis in reader:
-            found.setdefault(folder, synopsis)
-    return sorted(found.items())
+def _js(pattern: str, flags: int = 0) -> re.Pattern:
+    """A JS regex literal's source compiled to match as V8 does: \\s as JS's set, ASCII \\w, a leading ^ as JS's."""
+    if flags & re.M and pattern.startswith("^"):
+        pattern = _BOL + pattern[1:]
+    return re.compile(pattern.replace(r"\s", _S), flags | re.A)
+
+
+SRC = _js(r"\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|php|swift|cs)\Z")
+SKIP_DIR = _js(r"(^|/)(node_modules|\.git|dist|build|out|vendor|venv|\.venv|__pycache__|coverage|\.next|target|migrations|versions|fixtures|tests?|__tests__|spec)(/|\Z)")
+SKIP_FILE = _js(r"(^|/)(test_[^/]*|[^/]*(_test|\.test|\.spec|\.gen|\.min|\.d)\.[a-z]+)\Z")
+NAME = _js(r"^(?:type\s+)?(?:[\w$]+\s+as\s+)?([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\Z")
+SAFE_PATH = _js(r"^[\w.@+$()\[\]/-]+\Z")
+SHARED = _js(r"(util|helper|lib|common|shared|service|component|hook|core|model|schema|api)", re.I)
+
+_M = re.M
+PATTERNS = {
+    "py": [_js(r"^(?:async\s+)?def\s+([A-Za-z]\w*)", _M), _js(r"^class\s+([A-Za-z]\w*)", _M)],
+    "js": [_js(r"^export\s+(?:default\s+)?(?:async\s+)?(?:function\*?|class|const|let|var|interface|type|enum)\s+([A-Za-z_$][\w$]*)", _M),
+           _js(r"^export\s*\{([^}]*)\}", _M)],
+    "go": [_js(r"^func\s+(?:\([^)]*\)\s*)?([A-Z]\w*)", _M), _js(r"^type\s+([A-Z]\w*)", _M)],
+    "rs": [_js(r"^pub\s+(?:async\s+)?(?:fn|struct|enum|trait|type)\s+(\w+)", _M)],
+    "rb": [_js(r"^\s*(?:def|class|module)\s+([A-Za-z][\w.]*)", _M)],
+    "jvm": [_js(r"^\s*(?:public\s+)?(?:static\s+)?(?:final\s+)?(?:class|interface|enum|record)\s+(\w+)", _M)],
+}
+LANG = {"py": "py", "js": "js", "jsx": "js", "mjs": "js", "cjs": "js", "ts": "js", "tsx": "js", "go": "go", "rs": "rs",
+        "rb": "rb", "java": "jvm", "kt": "jvm", "swift": "jvm", "cs": "jvm", "php": "jvm"}
+
+# Approximates JS localeCompare (ICU, en-US) on the ASCII SAFE_PATH allows: primary weights in this order, a letter's
+# cases sharing one, then lowercase before uppercase; other locales' tailorings are not emulated.
+_COLLATION = "_-.()[]@/+$0123456789abcdefghijklmnopqrstuvwxyz"
+
+
+def _collation_key(path: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    return tuple(_COLLATION.index(c.lower()) for c in path), tuple(int(c.isupper()) for c in path)
+
+
+def _extname(path: str) -> str:
+    """Node's path.extname without its dot: '' when the basename's only dot leads it."""
+    base = posixpath.basename(path)
+    dot = base.rfind(".")
+    return base[dot + 1:] if dot > 0 else ""
+
+
+def names_in(path: str, text: str) -> list[str]:
+    """namesIn: the names the path's language patterns find, in pattern order, no `_` name, no duplicate."""
+    names: list[str] = []
+    for pattern in PATTERNS.get(LANG.get(_extname(path), ""), []):
+        for match in pattern.finditer(text):
+            for part in match.group(1).split(","):
+                found = NAME.match(part.strip(JS_SPACE))
+                name = found.group(1) if found else ""
+                if name and not name.startswith("_") and name not in names:
+                    names.append(name)
+    return names
+
+
+def _read(full: str) -> str | None:
+    """The file's first 65536 UTF-16 code units, as JS slices them; None for anything but a regular file."""
+    try:
+        if not stat.S_ISREG(os.lstat(full).st_mode):
+            return None
+        with open(full, "rb") as handle:
+            data = handle.read(READ_BYTES)
+    except OSError:
+        return None
+    text = data.decode("utf-8", "replace")
+    if len(text) <= 65536 // 2:
+        return text
+    return text.encode("utf-16-le", "surrogatepass")[:65536 * 2].decode("utf-16-le", "surrogatepass")
+
+
+def source_files(paths: list[str]) -> list[str]:
+    """buildMap's file list: safe source paths, no test, generated or vendored one, cut at MAX_FILES, shared first."""
+    kept = [p for p in paths if SAFE_PATH.match(p) and SRC.search(p) and not SKIP_DIR.search(p) and not SKIP_FILE.search(p)]
+    return sorted(kept[:MAX_FILES], key=lambda p: (not SHARED.search(p), _collation_key(p)))
+
+
+def folder_of(path: str) -> str:
+    """The folder a path relative to the top sits in, as posixpath.dirname names it, '.' at the root: a folder line's key."""
+    return posixpath.dirname(path) or "."
+
+
+def folder_lines(top: str, paths: list[str]) -> list[tuple[str, str]]:
+    """buildMap's folder lines over paths relative to top, before its budget: (folder, line) in its order, the folder as
+    folder_of names it."""
+    folders: dict[str, list[list[str]]] = {}
+    for path in source_files(paths):
+        text = _read(os.path.join(top, path))
+        if text is None:
+            continue
+        names = names_in(path, text)
+        if names:
+            folders.setdefault(folder_of(path), []).append(names)
+    lines: list[tuple[str, str]] = []
+    for folder, per_file in folders.items():
+        # The first exports say what a file is; in a folder of many files one name each.
+        names = list(dict.fromkeys(n for file_names in per_file for n in file_names[:1 if len(per_file) > 8 else 3]))
+        lines.append((folder, f"{folder}/: {', '.join(names[:30])}{', ...' if len(names) > 30 else ''}"))
+    return lines
+
+
+def _render(header: str, lines: list[str]) -> str:
+    """buildMap's budget: the header and each line that still fits in BUDGET characters, then the count left out; ''
+    when no line fits."""
+    kept: list[str] = []
+    used = skipped = 0
+    for line in lines:
+        if used + len(line) > BUDGET:
+            skipped += 1
+            continue
+        kept.append(line)
+        used += len(line) + 1
+    if not kept:
+        return ""
+    return "\n".join([header, *kept]) + (f"\n({skipped} more folders not listed)" if skipped else "")
+
+
+def full_map(lines: list[tuple[str, str]]) -> str:
+    """buildMap's text from its folder lines: every folder inside the budget, '' when no file names anything."""
+    return _render(HEADER, [line for _, line in lines])
+
+
+def flight_map(lines: list[tuple[str, str]], paths: list[str]) -> str:
+    """The lines of the folders holding the changed paths alone, each path's own folder as folder_of names it, in
+    buildMap's order, under FLIGHT_HEADER and inside the same budget, the count after them only of changed folders left
+    out; '' when no changed folder has a line."""
+    changed = {folder_of(path) for path in paths}
+    return _render(FLIGHT_HEADER, [line for folder, line in lines if folder in changed])
+
+
+def build_map(top: str, paths: list[str]) -> str:
+    """buildMap over paths relative to top: the header and one line per folder, '' when no file names anything."""
+    return full_map(folder_lines(top, paths))
+
+
+def map_lines(top: str, env: dict[str, str]) -> list[tuple[str, str]]:
+    """The folder lines of the repository at top, from the paths git tracks, cut at MAX_FILES * 5 as ponytail cuts them."""
+    return folder_lines(top, repo.tracked_paths(top, env, BUILD_TIMEOUT)[:MAX_FILES * 5])

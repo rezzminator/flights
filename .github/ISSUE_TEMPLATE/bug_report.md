@@ -8,7 +8,7 @@ assignees: ''
 
 **What happened**
 
-<!-- e.g. "a Go package with a doc comment shows (no front door doc)" -->
+<!-- e.g. "an untracked file that is not ignored is missing from the tree" -->
 
 **What you expected**
 
@@ -20,7 +20,7 @@ assignees: ''
 
 - Claude Code version (`claude --version`):
 - flights version (see `/plugin`, or the plugin's `plugin.json`):
-- OS, `python3 --version`, `go version`:
+- OS, `python3 --version`, `git --version`:
 
 **Log lines**
 

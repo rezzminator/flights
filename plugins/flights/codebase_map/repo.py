@@ -1,5 +1,5 @@
-"""The git questions the map asks: the repository's top level, its HEAD commit, the tracked files it reads; the read of a
-tracked front door; and the work tree found without git, for the read recorder."""
+"""The git questions the map asks: the repository's top level, its HEAD commit, and the paths it tracks; and, for a
+linked worktree, its base and the paths it changed since."""
 
 from __future__ import annotations
 
@@ -7,13 +7,11 @@ import os
 
 from .command import Unavailable, run
 
-# Path components whose folders are never part of the map: hidden folders, vendored and fixture trees.
-SKIPPED_COMPONENTS = frozenset({"vendor", "node_modules", "testdata"})
-
 
 def _git_env(env: dict[str, str]) -> dict[str, str]:
-    # git's messages are read below; the C locale keeps them untranslated.
-    return {**env, "LC_ALL": "C"}
+    # git's messages are read below; the C locale keeps them untranslated. No optional lock: a read never holds the
+    # index lock against the session's own git.
+    return {**env, "LC_ALL": "C", "GIT_OPTIONAL_LOCKS": "0"}
 
 
 def toplevel(cwd: str, env: dict[str, str], timeout: float) -> str | None:
@@ -26,19 +24,6 @@ def toplevel(cwd: str, env: dict[str, str], timeout: float) -> str | None:
     return os.path.realpath(result.stdout.strip())
 
 
-def work_tree(cwd: str) -> str | None:
-    """The real path of the nearest folder at or above cwd holding a `.git` (a folder, or a worktree's file), found without
-    running git: the read recorder's cheap stand-in for toplevel. None when there is none."""
-    folder = os.path.realpath(cwd)
-    while True:
-        if os.path.lexists(os.path.join(folder, ".git")):
-            return folder
-        parent = os.path.dirname(folder)
-        if parent == folder:
-            return None
-        folder = parent
-
-
 def head(top: str, env: dict[str, str], timeout: float) -> str:
     """The commit HEAD names: the cache key."""
     result = run(["git", "rev-parse", "--verify", "-q", "HEAD"], top, _git_env(env), timeout)
@@ -49,30 +34,59 @@ def head(top: str, env: dict[str, str], timeout: float) -> str:
     return result.stdout.strip()
 
 
-def skipped(path: str) -> bool:
-    """True for a path inside a hidden, vendored or fixture folder."""
-    parts = path.split("/")[:-1]
-    return any(part.startswith(".") or part in SKIPPED_COMPONENTS for part in parts)
+def tracked_paths(top: str, env: dict[str, str], timeout: float) -> list[str]:
+    """The lines `git ls-files` prints, the paths git tracks relative to top, quoted as git quotes them; the work tree may
+    no longer hold some."""
+    return _lines(["git", "ls-files"], top, env, timeout)
 
 
-def tracked_files(top: str, env: dict[str, str], timeout: float) -> list[str]:
-    """Every tracked file the map may read, relative to top, outside skipped folders."""
-    result = run(["git", "ls-files", "-z"], top, _git_env(env), timeout)
+def _lines(argv: list[str], top: str, env: dict[str, str], timeout: float, end: str = "\n") -> list[str]:
+    """The non-empty lines git prints for argv, each ended by end, run in top; a failure is an Unavailable naming the
+    command."""
+    result = run(argv, top, _git_env(env), timeout)
     if result.code != 0:
-        raise Unavailable(f"git ls-files failed (exit {result.code}): {result.last_error_line()}")
-    return [path for path in result.stdout.split("\0") if path and not skipped(path)]
+        raise Unavailable(f"git {' '.join(argv[1:3])} failed (exit {result.code}): {result.last_error_line()}")
+    return [line for line in result.stdout.split(end) if line]
 
 
-def front_door(top: str, path: str) -> bytes | None:
-    """A tracked front door's bytes; None when the work tree no longer has it. OSError when it is no regular file inside
-    top: a tracked symlink to a FIFO or a device would block or never end the read, and one leaving top is no package doc."""
-    full = os.path.join(top, path)
-    if not os.path.lexists(full):
-        return None
-    real = os.path.realpath(full)
-    if os.path.commonpath([real, top]) != top:
-        raise OSError(f"{path} points outside the repository")
-    if not os.path.isfile(real):
-        raise OSError(f"{path} is not a regular file")
-    with open(real, "rb") as handle:
-        return handle.read()
+def linked_worktree(top: str, env: dict[str, str], timeout: float) -> bool:
+    """Whether top is a linked worktree: its git directory is not the repository's common one."""
+    dirs = _lines(["git", "rev-parse", "--git-dir", "--git-common-dir"], top, env, timeout)
+    if len(dirs) != 2:
+        raise Unavailable(f"git rev-parse --git-dir --git-common-dir printed {len(dirs)} lines, not 2")
+    git_dir, common_dir = (os.path.realpath(os.path.join(top, line)) for line in dirs)
+    return git_dir != common_dir
+
+
+def main_worktree_head(top: str, env: dict[str, str], timeout: float) -> str:
+    """The commit the main worktree's HEAD names: the first entry `git worktree list --porcelain` prints."""
+    first: list[str] = []
+    for line in _lines(["git", "worktree", "list", "--porcelain"], top, env, timeout):
+        if line.startswith("worktree ") and first:
+            break
+        first.append(line)
+    for line in first:
+        if line.startswith("HEAD "):
+            return line[len("HEAD "):]
+    raise Unavailable("git worktree list names no HEAD for the main worktree (a bare repository has none)")
+
+
+def merge_base(top: str, other: str, env: dict[str, str], timeout: float) -> str:
+    """The best common ancestor of HEAD and other."""
+    result = run(["git", "merge-base", "HEAD", other], top, _git_env(env), timeout)
+    if result.code == 1 and not result.stdout.strip():
+        raise Unavailable(f"HEAD and the main worktree's {other[:12]} share no commit")
+    if result.code != 0:
+        raise Unavailable(f"git merge-base failed (exit {result.code}): {result.last_error_line()}")
+    return result.stdout.strip()
+
+
+def changed_paths(top: str, base: str, env: dict[str, str], timeout: float) -> list[str]:
+    """The tracked paths whose work tree content differs from base, committed or not, unquoted: NUL-ended, so a name git
+    would quote still names its own folder."""
+    return _lines(["git", "diff", "--name-only", "--no-renames", "-z", base], top, env, timeout, "\0")
+
+
+def untracked_paths(top: str, env: dict[str, str], timeout: float) -> list[str]:
+    """The untracked paths git does not ignore, unquoted as changed_paths prints them."""
+    return _lines(["git", "ls-files", "--others", "--exclude-standard", "-z"], top, env, timeout, "\0")

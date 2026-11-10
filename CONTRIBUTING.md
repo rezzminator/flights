@@ -10,16 +10,16 @@ that way is the easiest to merge.
 | --- | --- |
 | `plugins/flights/` | Everything that installs, and nothing else; dev files never go in it |
 | `plugins/flights/hooks/hooks.json` | The `SessionStart` and `SubagentStart` command hooks |
-| `plugins/flights/codebase_map/` | The map, a stdlib-only Python package; its front door `__init__.py` names every file |
-| `tests/` | One unittest file per concern; `test_hook.py` builds a throwaway git repository and runs the real entry point, git and Go |
+| `plugins/flights/codebase_map/` | The map, a stdlib-only Python package; its `__init__.py` menu names every file |
+| `tests/` | One unittest file per concern; `test_hook.py` builds a throwaway git repository and runs the real entry point and git |
 | `scripts/release-check.sh` | The version agrees everywhere it is written |
 
 ## Set up
 
-Python 3.9 or later, git and Go on `PATH`; the `claude` CLI for `make validate`.
+Python 3.9 or later and git on `PATH`; the `claude` CLI for `make validate`.
 
 ```sh
-make test               # every test; a missing go or git fails the run
+make test               # every test; a missing git fails the run
 make validate           # claude plugin validate --strict
 scripts/release-check.sh
 ```
@@ -32,7 +32,7 @@ any installed copy of flights disabled for that run.
 - A new behaviour comes with a test in `tests/` that you watched fail first.
 - A failure never reads as absence: the hook injects `Codebase map unavailable: {reason}`
   and logs it, never nothing.
-- Each source file stays at or under 240 lines, and the front door's menu names it.
+- Each source file stays at or under 240 lines, and the `__init__.py` menu names it.
 - A change in behaviour moves `README.md` and `CHANGELOG.md` (under
   `## [Unreleased]`) in the same pull request.
 - No machine-absolute paths or personal data in a tracked file.

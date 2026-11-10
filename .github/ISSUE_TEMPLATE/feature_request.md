@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: An idea for flights, a new front door the map should read
+about: An idea for flights or its codebase map
 title: ''
 labels: enhancement
 assignees: ''
@@ -8,7 +8,7 @@ assignees: ''
 
 **What you want**
 
-<!-- e.g. "read the package doc of a Java package-info.java" -->
+<!-- e.g. "list a third level under the folders I name" -->
 
 **Why**
 
