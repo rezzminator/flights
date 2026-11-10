@@ -2,7 +2,7 @@
 
 Every release of flights. Versions follow [semantic versioning](https://semver.org); each release is the `main` commit tagged `flights--v<version>`, with a GitHub release carrying the section below.
 
-## [Unreleased]
+## [1.0.0] — 2026-11-10
 
 ### Added
 
@@ -13,6 +13,7 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 ### Changed
 
 - Both foremen build under a price law, since every request re-reads the whole context: reading is three batched rounds before the first edit (locate every name in one Bash call, read the exact ranges, fill what is left), the tests and the change go in one round with the new tests run red first, and once the tests are green the foreman runs one throwaway script that drives the change with the inputs its tests leave out. The return is 25 lines at most and gains `PROBES` (each probed input with its printed result) and `UNTESTED` (behaviour neither a test nor a probe ran); `TESTS` and `PROBES` answer `COULD NOT RUN: {first error line}` when they could not.
+- Both foremen build work one write-and-prove round cannot hold, several items or one item across many files, from a work list: right after the first reading round the foreman saves a list to a file outside the tree, named for the request, a line an item (`open {item} — {files}`), builds it group by group (one read call, one fill call, then every item of the group edited in one message and proven by one test call), rewrites each finished group's lines as `done {item} — {test name or file:line}` or `open {item} — {why}`, probes once after the last group and carries the list's path through a compaction. An item the brief names, or a file it points to lists, is never left open for the run's size, context or price, nor for a check the foreman cannot run: the item is built and what could not be checked goes under `UNTESTED`. A work list of more than 10 items returns one `ACCEPTANCE` row a group, one for each `open` line, and the list's path under `FILES`; one `open` row makes the status `PARTIAL`, whoever owns the item.
 - `flights:foreman` runs at effort medium, where it ran at high; `flights:foreman-sonnet` stays at high. `effortControl` still raises a foreman's effort one step at a failing test run, so the write after the red proof runs one level above the reading.
 - Both foremen carry a `tools:` list: `Read`, `Write`, `Edit`, `Bash`, `Skill`, `SendMessage` and the two forward-compaction tools. Their first request is about a fifth smaller (about 7,000 tokens), and `SendMessage` no longer costs a `ToolSearch` call first.
 - `/flights:doctor` checks a foreman's reading rounds (requests before the first edit past the third, read-only requests carrying one command) and its unprobed returns.
