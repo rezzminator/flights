@@ -39,7 +39,7 @@ Claude Code names each plugin agent `flights:{name}`: that is the `subagent_type
 | `flights:diff-checker` | Opus | spawned by the lander: one diff cluster's defects, read whole against the spec rows it implements |
 | `flights:spec-checker` | Sonnet | spawned by the lander: a range of the request's numbered rows, each traced to its code |
 | `flights:usage-checker` | Haiku | spawned by the lander: names the diff removed that the tree still holds, and threads past the diff |
-| `flights:foreman-pro` | Opus, effort high | designs work the codebase has never done, then builds it; `LEVEL 0–10` sets how far past the ask it goes, `/ultimate` preloaded; `/flights:spec` grills the requirements it builds from |
+| `flights:foreman-pro` | Opus, effort high | designs, then builds greenfield work: a new thing built from nothing, meant to be really good; a change to what exists, however risky, goes to `flights:foreman`; `LEVEL 0–10`, sent only from the user's words, sets how far past the ask it goes, `/ultimate` preloaded |
 | `flights:tracer` | Sonnet, effort high | answers numbered questions from code: its readers walk each thread hop by hop and its kit re-reads every quoted line from disk |
 | `flights:sub-tracer` | Haiku, effort low | spawned by the tracer: follows one thread of code and writes its hops |
 | `flights:reviewer` | Opus, effort high | reviews a diff range, proving every thread it touches safe up and downstream, with one tracer run |

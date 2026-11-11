@@ -189,6 +189,10 @@ class FlightContractsTest(unittest.TestCase):
         head, body = parts(agent("foreman-pro"))
         self.assertEqual(blocks(head)["skills"], "skills: [ultimate]\n", f"{agent('foreman-pro')}: preloads /ultimate")
         self.assertIn("include: [main]", head, f"{agent('foreman-pro')}: spawned by the main chat alone")
+        self.assertIn("Not for changing what exists, however risky (rename, migration, fix, refactor) → flights:foreman.",
+                      blocks(head)["description"], f"{agent('foreman-pro')}: a change to existing code goes to the foreman")
+        self.assertIn("LEVEL 0–10 only from the user''s words, never for risk or size.", blocks(head)["description"],
+                      f"{agent('foreman-pro')}: the level comes from the user's words alone")
         self.assertIn("`LEVEL {0–10}`: how far past the ask the work goes, § Level (absent: 5).", body,
                       f"{agent('foreman-pro')}: the level and its default")
         for row in ("| 0–3 | none:", "| 4–6 | `rr`, only", "| 7–8 | `rr-pro`;", "| 9–10 | `rr-pro-max`"):
