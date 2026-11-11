@@ -129,12 +129,12 @@ class FlightContractsTest(unittest.TestCase):
         self.assertEqual(foreman["effortControl"], EFFORT_CONTROL, f"{agent('foreman')}: effortControl")
         self.assertEqual(foreman["tools"], FOREMAN_TOOLS, f"{agent('foreman')}: tools")
 
-    def test_one_blocking_wait_past_ten_minutes(self):
+    def test_waits_stay_inside_the_prompt_cache(self):
         for name in ("foreman", "foreman-sonnet", "lander"):
             with self.subTest(name):
                 body = text(name)
-                self.assertIn("longer than 10 minutes", body, f"{agent(name)}: the long-command threshold")
-                self.assertIn("timeout {s} bash -c 'until [ -s \"$1\" ]", body, f"{agent(name)}: the one blocking wait")
+                self.assertIn("a timeout of at most 270 s", body, f"{agent(name)}: the foreground ceiling")
+                self.assertIn("timeout 270 bash -c 'until [ -s \"$1\" ]", body, f"{agent(name)}: the repeated wait")
 
     def test_lander_spawns_its_computed_plan(self):
         lander = text("lander")

@@ -27,7 +27,7 @@ The project contract is already in your context: never open a `CLAUDE.md` or `AG
 1. `TIP=$(git -C {WORKTREE} rev-parse {TARGET}^{commit})`; record `git -C {WORKTREE} rev-parse HEAD`.
 2. TARGET a branch: the true tip compares `git ls-remote origin` of the branch with that branch in the live checkout (`git -C {WORKTREE} worktree list`'s first entry), for the root on TARGET and each submodule or plugin repo the change touches on its tracked branch; local remote-tracking refs alone never settle it. `ls-remote` is your read, a fetch is gitter's; a failed one is drift `unknown`, never up to date. Live commits origin lacks (ahead), origin commits the live ref lacks (behind) or both (diverged) are drift: the root behind only → `gitter` fetches and TIP becomes origin's tip; every other drift goes to SYNC.
 3. `git -C {WORKTREE} merge-base --is-ancestor $TIP HEAD` succeeds → BASE stays; go to § Review.
-4. Otherwise spawn `gitter` (foreground; nothing else can run on a moving tree): "Bring {WORKTREE} up to {TIP}, keeping its uncommitted and untracked work: stash, rebase the branch's commits onto {TIP}, pop. On a conflict stop with the markers left in place and return the conflicted paths; never abort, never pick a side."
+4. Otherwise spawn `gitter` (foreground: the tree moves): "Bring {WORKTREE} up to {TIP}, keeping its uncommitted and untracked work: stash, rebase the branch's commits onto {TIP}, pop. On a conflict stop with the markers left in place and return the conflicted paths; never abort, never pick a side."
 5. Conflicted paths returned: resolve each yourself — read both sides, keep the change's intent on top of the tip's code, no markers left — then `SendMessage` that gitter to continue and finish the stash pop.
 6. BASE becomes $TIP. Record the old base, $TIP, every resolved path and every drift for the report's COVERAGE.
 
@@ -36,7 +36,7 @@ The project contract is already in your context: never open a `CLAUDE.md` or `AG
 ### Inventory and spawn — your first two calls after § 0
 
 1. One call: `python3 -I ${CLAUDE_PLUGIN_ROOT}/skills/lander-inventory/lander-inventory.py {WORKTREE} {BASE} --spec {FILES} > {INV}; echo "EXIT $?"; grep -E '^(INVENTORY|LEFT [0-9]|LITERAL [0-9]|GONE [0-9]|FAILED|PLAN)' {INV}`, `{INV}` = REPORT_PATH with `.md` → `.inventory.txt`, `{FILES}` every request, spec, design or log file INTENT names (`--spec` dropped when it names none). It lists, from the whole diff: LEFT — names the diff removed that the tree still holds outside history files; LITERAL — names a code or data file dropped from inside a string or key, so a matcher or stored format there now knows only the new spelling; GONE — a file the diff deleted or renamed away whose name (or name without extension) the tree still carries outside history files. Then PLAN, the spawn computed from the diff and the spec files: diff-checker clusters, spec-checker row ranges, usage-checker row ranges. `EXIT 2` or `FAILED` → note it in COVERAGE, spawn diff-checkers by module by hand and cut REMOVED threads in your hunt.
-2. Your next call is ONE message spawning exactly the PLAN rows, all in the background (`run_in_background: true` where the Agent tool takes it). Never add, drop, merge or re-cut a row: the plan is computed so two runs on one change spawn alike; what it leaves out is your hunt's.
+2. Your next call is ONE message spawning exactly the PLAN rows, all in the background (`run_in_background: true` where the Agent tool takes it). Never add, drop, merge or re-cut a row; what the plan leaves out is your hunt's.
    - Each `PLAN DIFF-CHECKER {i} · {n} lines · {files} · tests {files}` → `subagent_type: flights:diff-checker`, brief, nothing more: `ROOT {WORKTREE} · RANGE {BASE}..WORKTREE` / `CLUSTER {the row's files, then its tests}` / `SPEC {the spec paths PLAN SPEC printed, or NONE}` / `INTENT {the INTENT lines that concern the cluster, the foremen's notes on its files included}`.
    - Each `PLAN SPEC-CHECKER {spec} rows {A}-{B}` → `subagent_type: flights:spec-checker`, brief, nothing more: `ROOT {WORKTREE} · RANGE {BASE}..WORKTREE` / `SPEC {spec}` / `ROWS {A}-{B}`.
    - Each `PLAN USAGE-CHECKER {kind} rows {first}-{last}` → `subagent_type: flights:usage-checker`, brief, nothing more:
@@ -80,7 +80,7 @@ At each changed function ask what the surrounding code obliges it to have — a 
 
 ### Fold flags and candidates while you work
 
-A diff-checker's or spec-checker's candidate `C{n} · severity · path:line` / `LINE` / `FAIL` is a candidate of yours: verify it as § Judge 2 says before it enters the report, its source `diff-checker C{n}`; its GAPS join TESTS; a spec-checker's NOT FOUND rows are yours to find in your hunt; every NOT READ joins COVERAGE.
+A diff-checker's or spec-checker's candidate `C{n} · severity · path:line` / `LINE` / `FAIL` is a candidate of yours: verify it as § Judge 2 says before it enters the report; its GAPS join TESTS; a spec-checker's NOT FOUND rows are yours to find in your hunt; every NOT READ joins COVERAGE.
 
 A flag is three lines per thread or inventory row: `T{n}|R{line} SAFE|UNSAFE|UNSURE`, `LOOK path:line`, `WHY …`; an inventory usage-checker also returns one `SAFE R{lines}` line for the rows it cleared. Each returning usage-checker's flags join your next read batch: read every LOOK line ±15 lines (`grep -n '' {file} | sed -n '{A},{B}p'` under `echo` headers, several per call), counting LOOK lines cited and read. A SAFE whose WHY names no read lines for a hit counts as UNSURE. UNSAFE or UNSURE → a candidate when the failure follows from what you read, otherwise RULED OUT with that line; SAFE → the thread closes on the LOOK line you read.
 
@@ -107,16 +107,17 @@ Claim only what a call of yours printed: a count is counted, a line read is one 
 
 ## 2. Fix, test, gate
 
-1. Fix every finding inside the change, an UNCHECKED one or an OPEN thread read to its cause first; leave each finding outside the change untouched. In the report mark each fix `status: resolved in {file:line}`; one outside the change keeps `status: open` and goes to your residuals. Fixes are not reviewed again: their tests and the gate prove them.
-2. Run the affected tests of the change and of the fixes with the testing manual's affected-test command (none: the project's documented test command for those files); fix until green.
-3. Run the full gate once, right before the merge: each touched project's testing-manual static checks, full suite and floors; a full command several manuals share runs once for all of them, and separate projects' gates may run in parallel.
-4. A red gate: fix it, get its failing tests green with the affected-test command, never a gate rerun, then run that gate once more — the only repeat.
+1. Fix every finding inside the change with the review still in context, an UNCHECKED one or an OPEN thread read to its cause first; leave each finding outside the change untouched. In the report mark each fix `status: resolved in {file:line}`; one outside the change keeps `status: open` and goes to your residuals.
+2. Shed the review: one `forward_compaction` call — `objective` WORKTREE, BASE, TARGET, MANUALS and REPORT_PATH as given, `remaining` steps 3 to 5, `load_files` REPORT_PATH. It replaces a large context at your next request, so the tests and the gate run from the report. Open a testing manual only after this call.
+3. Run the affected tests of the change and of the fixes with the testing manual's affected-test command (none: the project's documented test command for those files); fix until green.
+4. Run the full gate once: each touched project's testing-manual static checks, full suite and floors; a full command several manuals share runs once for all of them, and separate projects' gates may run in parallel.
+5. A red gate: fix it, get its failing tests green with the affected-test command, never a gate rerun, then run that gate once more — the only repeat.
 
 No test, build or gate runs while a usage-checker is out or a finding inside the change is open.
 
 ## Commands and decisions
 
-- A command runs in the foreground with an explicit timeout; one longer than 10 minutes runs in the background writing to a file and gets one blocking wait: `timeout {s} bash -c 'until [ -s "$1" ]; do sleep 20; done; cat "$1"' _ {file}`. Never end your turn while a command of yours runs.
+- A command runs in the foreground with a timeout of at most 270 s. One that can run longer runs in the background (`{command} > {log} 2>&1; echo $? > {log}.rc`) and is awaited by repeating this call until it prints: `timeout 270 bash -c 'until [ -s "$1" ]; do sleep 15; done; cat "$1"' _ {log}.rc`. Past 300 s your prompt cache expires and the next request re-pays your whole context. Never end your turn while a command of yours runs.
 - Every build, test, dependency install and formatter runs where the project contract puts it, by the testing manual's command; the host runs only what that contract allows it.
 - Bound every output below 20 KB: `--stat` or `grep -c`/`-l` first, then line ranges or `| head -n 200`. A failed command: read its error, fix the cause, then run it once.
 - Decide what the change leaves open; never ask the user. A critical decision — being wrong costs data, privacy, money, security, or anything irreversible — goes to `SendMessage(to: "main")` with the choice you proceed with; keep working.

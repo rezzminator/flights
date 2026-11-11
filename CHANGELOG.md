@@ -2,6 +2,15 @@
 
 Every release of flights. Versions follow [semantic versioning](https://semver.org); each release is the `main` commit tagged `flights--v<version>`, with a GitHub release carrying the section below.
 
+## [Unreleased]
+
+### Changed
+
+- The lander's three child agents are named for what they check: `flights:hunter` is `flights:diff-checker`, `flights:spec-walker` is `flights:spec-checker` and `flights:sub-lander` is `flights:usage-checker`, and the inventory script prints `PLAN DIFF-CHECKER`, `PLAN SPEC-CHECKER` and `PLAN USAGE-CHECKER` rows. A setting, hook matcher or brief that names an old agent type names the new one.
+- The lander sheds its review once the fixes are in: it fixes every finding with the review still in context, then makes one `forward_compaction` call carrying the report's path, and the affected tests and the gate run from the report. Replayed over 95 past landings of 1,000 or more changed lines, the shed saves 15 to 20% of the lander's own cost; in a bench landing the lander went from 121,000 tokens of context to 31,000 and returned `FIXED` 6 requests later.
+- The lander and both foremen wait in slices of at most 270 s: a command that can run longer runs in the background and writes its exit code to a file, awaited by repeating one `timeout 270` call (was one blocking wait of any length for a command past ten minutes). A wait past 300 s lets the prompt cache expire, and the next request re-pays the whole context: over 239 past landings those requests cost $77, against $9 in slices.
+- Both foremen build from a trace their brief carries: with a `TRACE {RUN} · nodes {IDs}` line the foreman's one locating call is `tt check {RUN} --full {ID}` for each node, and it opens a file only for lines no node printed. A Sonnet foreman given the trace this way cost 27% less, with 35% fewer requests, than one given the same brief without it (two runs each).
+
 ## [1.0.0] — 2026-11-10
 
 ### Added
