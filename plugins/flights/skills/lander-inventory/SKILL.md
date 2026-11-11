@@ -13,4 +13,4 @@ Run `python3 -I ${CLAUDE_PLUGIN_ROOT}/skills/lander-inventory/lander-inventory.p
 - `LEFT`: a name the diff removed everywhere it touched, still in the tree outside history files.
 - `LITERAL`: a name a code or data file dropped from inside a string or key on a replaced line.
 - `GONE`: a file the diff deleted or renamed away, still named in the tree.
-- `PLAN`: the spawn — `PLAN HUNTER` clusters (k = min(4, ceil(production diff lines / 600)), none at 400 lines or fewer), `PLAN WALKER` row ranges over each `--spec` file with 10 or more numbered rows (4 in all at most), `PLAN SUB-LANDER` ranges over the rows above by line number (6 at most).
+- `PLAN`: the spawn — `PLAN DIFF-CHECKER` clusters (k = min(4, ceil(production diff lines / 600)), none at 400 lines or fewer), `PLAN SPEC-CHECKER` row ranges over each `--spec` file with 10 or more numbered rows (4 in all at most), `PLAN USAGE-CHECKER` ranges over the rows above by line number (6 at most).

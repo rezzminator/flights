@@ -59,9 +59,9 @@ class WorkingTreeTest(unittest.TestCase):
         gone = [r for r in rows if r.startswith("GONE old_delta_file ")]
         self.assertEqual(len(gone), 1, "the uncommitted deletion")
         self.assertIn("c.py:1", gone[0], "an untracked file is searched")
-        hunters = [r for r in rows if r.startswith("PLAN HUNTER ")]
-        self.assertEqual(len(hunters), 1, rows)
-        self.assertIn("c.py", hunters[0], "an untracked file is counted")
+        diff_checkers = [r for r in rows if r.startswith("PLAN DIFF-CHECKER ")]
+        self.assertEqual(len(diff_checkers), 1, rows)
+        self.assertIn("c.py", diff_checkers[0], "an untracked file is counted")
 
     def test_only_uncommitted_work_is_no_empty_diff(self):
         self.base = self.git("rev-parse", "HEAD").strip()
@@ -76,7 +76,7 @@ class WorkingTreeTest(unittest.TestCase):
         self.assertIn(f"INVENTORY {self.base}..HEAD", p.stdout)
         self.assertIn("LEFT old_alpha_name ", p.stdout)
         self.assertNotIn("old_beta_name", p.stdout)
-        self.assertIn("PLAN HUNTERS none", p.stdout)
+        self.assertIn("PLAN DIFF-CHECKERS none", p.stdout)
 
 
 if __name__ == "__main__":

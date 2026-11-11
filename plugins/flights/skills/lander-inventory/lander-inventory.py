@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""lander-inventory: threads a lander hands to sub-landers before reading the diff.
+"""lander-inventory: threads a lander hands to usage-checkers before reading the diff.
 
 usage: lander-inventory.py WORKTREE BASE [HEAD] [--spec FILE ...]
 
@@ -10,8 +10,8 @@ LEFT  a name the diff removed everywhere it touched, still present in the tree
 LITERAL  a gone name that sat inside a string or key on a replaced code/data line
          (a matcher or stored format that may still meet the old spelling)
 GONE  a file the diff deleted or renamed away, still named in the tree
-PLAN  the spawn: hunters over production-diff clusters, spec walkers over numbered
-      spec rows, sub-landers over the rows above by line number; the lander spawns
+PLAN  the spawn: diff-checkers over production-diff clusters, spec-checkers over numbered
+      spec rows, usage-checkers over the rows above by line number; the lander spawns
       exactly these rows
 Exit 0 with the lists; exit 2 with FAILED and the cause when git or the input breaks.
 """
@@ -26,8 +26,8 @@ MAX_LEFT, MAX_LOC, MAX_SWAP = 60, 6, 120
 TEST = re.compile(r"(_test\.go|\.test\.[mc]?[jt]s|_test\.py|test_[^/]*\.py|/tests?/)")
 NOTCODE = re.compile(r"(\.(md|txt|rst|sum|lock)$|(^|/)(testdata|generated)/|package-lock\.json$)")
 SPECROW = re.compile(r"^(\| *|[-*] +|#+ +)\**([A-Z]{1,3}[0-9]{1,3})\b")
-HUNT_MIN, HUNT_SIZE, MAX_HUNT = 400, 600, 4
-WALK_MIN, MAX_WALK, MAX_SUB = 10, 4, 6
+DIFF_CHECK_MIN, DIFF_CHECK_SIZE, MAX_DIFF_CHECK = 400, 600, 4
+SPEC_CHECK_MIN, MAX_SPEC_CHECK, MAX_USAGE_CHECK = 10, 4, 6
 
 
 OUT = []
@@ -222,7 +222,7 @@ def main():
 def plan(wt, rev, new, specs):
     """The spawn, computed, so two runs on one input spawn alike."""
     rows = []  # PLAN lines, appended after the inventory so its line numbers stay put
-    # hunters: production diff in path order, cut into equal clusters
+    # diff-checkers: production diff in path order, cut into equal clusters
     prod, tests = [], defaultdict(list)
     names = {f.rsplit("/", 1)[-1] for f in git(wt, "diff", "--name-only", "--no-renames", *rev).splitlines() + new}
     # deleted files have no code left to hunt (GONE rows cover their names)
@@ -239,10 +239,10 @@ def plan(wt, rev, new, specs):
             prod.append((f, n))
     prod.sort()
     total = sum(n for _, n in prod)
-    if total <= HUNT_MIN:
-        rows.append(f"PLAN HUNTERS none · production diff {total} lines <= {HUNT_MIN}: the whole hunt is yours\n")
+    if total <= DIFF_CHECK_MIN:
+        rows.append(f"PLAN DIFF-CHECKERS none · production diff {total} lines <= {DIFF_CHECK_MIN}: the whole hunt is yours\n")
     else:
-        k = min(MAX_HUNT, -(-total // HUNT_SIZE))
+        k = min(MAX_DIFF_CHECK, -(-total // DIFF_CHECK_SIZE))
         clusters, cur, acc = [], [], 0
         for f, n in prod:
             cur.append((f, n)); acc += n
@@ -255,9 +255,9 @@ def plan(wt, rev, new, specs):
             base_names = {"test-" + f.rsplit("/", 1)[-1] for f, _ in c}
             t = sorted({x for d in dirs for x in tests.get(d, [])}
                        | {x for xs in tests.values() for x in xs if x.rsplit("/", 1)[-1] in base_names})
-            rows.append(f"PLAN HUNTER {i} · {sum(n for _, n in c)} lines · {' '.join(f for f, _ in c)}"
+            rows.append(f"PLAN DIFF-CHECKER {i} · {sum(n for _, n in c)} lines · {' '.join(f for f, _ in c)}"
                         f" · tests {' '.join(t) if t else 'none'}\n")
-    # spec walkers: numbered rows, the largest spec first, at most MAX_WALK ranges
+    # spec-checkers: numbered rows, the largest spec first, at most MAX_SPEC_CHECK ranges
     found = []
     for sp in specs:
         try:
@@ -265,21 +265,21 @@ def plan(wt, rev, new, specs):
         except OSError as e:
             rows.append(f"PLAN SPEC-UNREADABLE {sp} · {e.strerror}\n"); continue
         r = [(i, m.group(2)) for i, l in enumerate(lines, 1) if (m := SPECROW.match(l))]
-        rows.append(f"PLAN SPEC {sp} · {len(r)} numbered rows{'' if len(r) >= WALK_MIN else f' < {WALK_MIN}: no walker'}\n")
-        if len(r) >= WALK_MIN:
+        rows.append(f"PLAN SPEC {sp} · {len(r)} numbered rows{'' if len(r) >= SPEC_CHECK_MIN else f' < {SPEC_CHECK_MIN}: no spec-checker'}\n")
+        if len(r) >= SPEC_CHECK_MIN:
             found.append((sp, r))
     found.sort(key=lambda x: -len(x[1]))
-    left = MAX_WALK
+    left = MAX_SPEC_CHECK
     for sp, r in found:
         want = min(left, 3 if len(r) > 60 else 2)
         if want <= 0:
-            rows.append(f"PLAN WALKER-SKIPPED {sp} · walker cap {MAX_WALK} reached: its rows are yours\n"); continue
+            rows.append(f"PLAN SPEC-CHECKER-SKIPPED {sp} · spec-checker cap {MAX_SPEC_CHECK} reached: its rows are yours\n"); continue
         left -= want
         size = -(-len(r) // want)
         for j in range(0, len(r), size):
             part = r[j:j + size]
-            rows.append(f"PLAN WALKER {sp} rows {part[0][0]}-{part[-1][0]} · {len(part)} rows {part[0][1]}..{part[-1][1]}\n")
-    # sub-landers: inventory rows by line number, LEFT+GONE apart from LITERAL
+            rows.append(f"PLAN SPEC-CHECKER {sp} rows {part[0][0]}-{part[-1][0]} · {len(part)} rows {part[0][1]}..{part[-1][1]}\n")
+    # usage-checkers: inventory rows by line number, LEFT+GONE apart from LITERAL
     near, lit = [], []
     for i, l in enumerate(OUT, 1):
         if re.match(r"^(LEFT|GONE) [^0-9]", l):
@@ -287,7 +287,7 @@ def plan(wt, rev, new, specs):
         elif re.match(r"^LITERAL [^0-9]", l):
             lit.append(i)
     nb = [-(-len(near) // 12), -(-len(lit) // 25)]
-    while sum(nb) > MAX_SUB:
+    while sum(nb) > MAX_USAGE_CHECK:
         nb[0 if nb[0] >= nb[1] else 1] -= 1
     for kind, ids, b in (("LEFT+GONE", near, nb[0]), ("LITERAL", lit, nb[1])):
         if not ids:
@@ -295,13 +295,13 @@ def plan(wt, rev, new, specs):
         size = -(-len(ids) // b)
         for j in range(0, len(ids), size):
             part = ids[j:j + size]
-            rows.append(f"PLAN SUB-LANDER {kind} rows {part[0]}-{part[-1]} · {len(part)} rows\n")
+            rows.append(f"PLAN USAGE-CHECKER {kind} rows {part[0]}-{part[-1]} · {len(part)} rows\n")
     if not near and not lit:
-        rows.append("PLAN SUB-LANDERS none · the inventory holds no rows\n")
-    h = sum(1 for x in rows if x.startswith("PLAN HUNTER "))
-    wk = sum(1 for x in rows if x.startswith("PLAN WALKER "))
-    sb = sum(1 for x in rows if x.startswith("PLAN SUB-LANDER "))
-    w(f"PLAN {h} hunters · {wk} spec walkers · {sb} sub-landers · spawn exactly these rows in one message\n")
+        rows.append("PLAN USAGE-CHECKERS none · the inventory holds no rows\n")
+    dc = sum(1 for x in rows if x.startswith("PLAN DIFF-CHECKER "))
+    sc = sum(1 for x in rows if x.startswith("PLAN SPEC-CHECKER "))
+    uc = sum(1 for x in rows if x.startswith("PLAN USAGE-CHECKER "))
+    w(f"PLAN {dc} diff-checkers · {sc} spec-checkers · {uc} usage-checkers · spawn exactly these rows in one message\n")
     OUT.extend(rows)
 
 

@@ -1,5 +1,5 @@
 ---
-name: hunter
+name: diff-checker
 description: FLIGHTS-LANDER-ONLY Finds one diff cluster's defects — the changed files of one module, read whole against the spec rows they implement. Spawned by flights:lander. Returns candidate findings, each tied to a verbatim line.
 visibility:
   visible-to:
@@ -16,7 +16,7 @@ READ-ONLY: no edits, no writes anywhere, no git writes, no build, test or progra
 
 ROOT, RANGE `{BASE}..WORKTREE`, CLUSTER (the changed production files you own, and their tests), SPEC (the request's file, or NONE) and INTENT (what the change claims to do).
 
-## Hunt
+## Check
 
 Budget: 30 tool calls. Keep each output under 20 KB (`--stat` first, line ranges, `| head -n 200`).
 

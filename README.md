@@ -36,9 +36,9 @@ Claude Code names each plugin agent `flights:{name}`: that is the `subagent_type
 | `flights:foreman` | Opus, effort medium | builds one request by its own hand: design choices, ambiguity, unfamiliar code, an unknown cause, cross-module work |
 | `flights:foreman-sonnet` | Sonnet, effort high | the same manual, word for word, for clear work with a pattern to follow |
 | `flights:lander` | Opus, effort medium | takes a worktree to merge-ready once every foreman on it returned: syncs to the target's tip, runs the gate, spawns the review its kit computes |
-| `flights:hunter` | Opus | spawned by the lander: one diff cluster's defects, read whole against the spec rows it implements |
-| `flights:spec-walker` | Sonnet | spawned by the lander: a range of the request's numbered rows, each traced to its code |
-| `flights:sub-lander` | Haiku | spawned by the lander: names the diff removed that the tree still holds, and threads past the diff |
+| `flights:diff-checker` | Opus | spawned by the lander: one diff cluster's defects, read whole against the spec rows it implements |
+| `flights:spec-checker` | Sonnet | spawned by the lander: a range of the request's numbered rows, each traced to its code |
+| `flights:usage-checker` | Haiku | spawned by the lander: names the diff removed that the tree still holds, and threads past the diff |
 | `flights:speccer` | Opus, effort xhigh | designs novel work with you before a build, through `/flights:spec` |
 | `flights:tracer` | Sonnet, effort high | answers numbered questions from code: its readers walk each thread hop by hop and its kit re-reads every quoted line from disk |
 | `flights:sub-tracer` | Haiku, effort low | spawned by the tracer: follows one thread of code and writes its hops |

@@ -46,11 +46,11 @@ Send all thread/body questions in at most three `subagent_type: flights:tracer` 
 - THREAD QUESTIONS: one per thread, each naming its surface with `path:line` and asking for every producer, caller, reader or checker with the line quoted and what it does with the new, removed, absent, zero or unknown value.
 - BODY QUESTIONS: one per changed function past your share (new file: each declared function), with `path:line` and diff range. Ask for quotes: all returns/fields set; guard error/empty branches; payload/config fields and absent/`null`/zero outcomes; waits, whole-file reads, writes, subprocesses and invoker rates; shared-state writers/readers; newly relied-on helper failures; result consumers/fields read; driving tests.
 
-Then, while they walk, run the § Hunter procedure over your share of the changed functions; each defect is a candidate. End your turn when your hunt is done and a tracer is still out; each return re-invokes you.
+Then, while they walk, run the § Diff-checker procedure over your share of the changed functions; each defect is a candidate. End your turn when your hunt is done and a tracer is still out; each return re-invokes you.
 
 ## Phase 2 — Judge (≤25 calls)
 
-1. Reconcile runs dispatched against returns received, and each run's questions against its answers, by number; a missing return or an unanswered question is a named hole. Outside-TREE repository evidence stays TAINTED; installed kit/scratch is not repository evidence. Hunt the body questions' facts with the § Hunter procedure.
+1. Reconcile runs dispatched against returns received, and each run's questions against its answers, by number; a missing return or an unanswered question is a named hole. Outside-TREE repository evidence stays TAINTED; installed kit/scratch is not repository evidence. Hunt the body questions' facts with the § Diff-checker procedure.
 2. Close every thread: SAFE (the line that proves it, quoted), UNSAFE (a finding), or OPEN (why it is not settled). A reader the diff did not update, a producer value the new code mishandles, an installed value nothing verifies, a cost paid per call, an interleaving that picks the wrong actor — each is a finding, classed BETWEEN-HOPS or MISSING.
 3. Break your SAFEs in step 4's call: re-read each SAFE in-diff CONTRACT, HOT PATH and CONCURRENT thread. CONTRACT: quote every producer return; trace each consumer-read field's value and rendered/action outcome against its comment/doc/sibling requirement. HOT PATH: quote invoker/harness trigger and count runs per request/redraw/event. CONCURRENT: every actor pair, same-kind included, and the party each interleaving picks. Contradictory facts reopen SAFE as UNSAFE, never re-argue it: e.g. empty/zero shown where `?` or an error is promised.
 4. Verify each candidate before reporting: quoted line ±15 lines, all candidates in one `tt show {RUN} {path}:{A}-{B} …` call, `{RUN}` any returned tracer's run — it prints any TREE file, a `[{ID}]` line a verified hop, evidence as it stands; none returned yet: `sed -n` ranges under `echo` headers. Line present and failure follows, else RULED OUT with evidence. Keep both failures on one line. Unprovable premise: retain and label it; exhausted budget: retain as UNCHECKED.
@@ -75,7 +75,7 @@ Capped/blocked: follow /flights:tracer-use § Continuation, retaining review.md,
 
 Write/return the review at REPORT_PATH when supplied. Findings: `F{n}`, `status: open`. Re-review updates that file: verified fixes → `status: resolved @{sha}`; append new defects as next `F{n}`. Evidence changes statuses, never history; only the orchestrator marks `waived — {ruling}`. A REPORT_PATH the harness refuses (the name rule above) → return `BLOCKED: REPORT_PATH refused — rename it`. Read the spec (task file, else claims). Every guard, bound, deletion or consumer change absent from its authorizing line is a `BUILDER-INVENTION` finding (restore authorized scope); every authorized change absent from code is also a finding.
 
-## Hunter procedure (yours)
+## Diff-checker procedure (yours)
 
 Read each changed function in your share whole, not just hunks, batching functions per call; read unchanged helpers it relies on. Every defect tied to a verbatim line and concrete failure is a candidate. Keep unprovable premises named (harness behaviour, config values); judge severity later.
 

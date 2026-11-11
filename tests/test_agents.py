@@ -18,8 +18,8 @@ SKILLS = PLUGIN / "skills"
 
 # Claude Code names a plugin agent `flights:{frontmatter name}`, a command `flights:{file name}` shown as its
 # frontmatter name when that already starts with `flights:`, a skill `flights:{folder}`.
-AGENT_NAMES = ["foreman", "foreman-sonnet", "hunter", "lander", "reviewer", "reviewer-pro", "spec-walker", "speccer",
-               "sub-lander", "sub-tracer", "tracer"]
+AGENT_NAMES = ["diff-checker", "foreman", "foreman-sonnet", "lander", "reviewer", "reviewer-pro", "spec-checker", "speccer",
+               "sub-tracer", "tracer", "usage-checker"]
 COMMAND_NAMES = {"doctor": "flights:doctor", "spec": "flights:spec"}
 SKILL_NAMES = {"lander-inventory": "lander-inventory", "tracer-use": "tracer-use", "tracetree": "tracetree"}
 
@@ -103,7 +103,7 @@ class FlightContractsTest(unittest.TestCase):
     def test_cast_tiers(self):
         cast = {
             "foreman": ("opus", "medium"), "foreman-sonnet": ("sonnet", "high"), "lander": ("opus", "medium"),
-            "hunter": ("opus", None), "spec-walker": ("sonnet", None), "sub-lander": ("haiku", None),
+            "diff-checker": ("opus", None), "spec-checker": ("sonnet", None), "usage-checker": ("haiku", None),
             "speccer": ("opus", "xhigh"), "reviewer": ("opus", "high"), "reviewer-pro": ("opus", "high"),
             "tracer": ("sonnet", "high"), "sub-tracer": ("haiku", "low"),
         }
@@ -145,7 +145,7 @@ class FlightContractsTest(unittest.TestCase):
         self.assertNotRegex(lander, r"/(Users|home)/", f"{agent('lander')}: no machine-absolute path")
         self.assertIn("ONE message spawning exactly the PLAN rows", lander, f"{agent('lander')}: the spawn is the plan")
         self.assertIn("ls-files --others --exclude-standard", lander, f"{agent('lander')}: reads untracked source")
-        for child in ("hunter", "spec-walker", "sub-lander"):
+        for child in ("diff-checker", "spec-checker", "usage-checker"):
             with self.subTest(child):
                 self.assertIn(f"subagent_type: flights:{child}", lander, f"{agent('lander')}: spawns flights:{child}")
                 head = parts(agent(child))[0]

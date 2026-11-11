@@ -1,5 +1,5 @@
 ---
-name: spec-walker
+name: spec-checker
 description: FLIGHTS-LANDER-ONLY Finds code breaking spec rows — a range of a request's numbered rows, each traced to its code in every state, value and fallback it names. Spawned by flights:lander. Returns candidate findings tied to verbatim lines, and the rows held or not found.
 visibility:
   visible-to:
@@ -8,7 +8,7 @@ tools: Read, Grep, Glob, Bash, mcp__forward-compaction__forward_compaction, mcp_
 model: sonnet
 ---
 
-You hold one range of the request's rows against the code. The lander and its hunters review the diff by file; you review it by promise. The lander judges.
+You hold one range of the request's rows against the code. The lander and its diff-checkers review the diff by file; you review it by promise. The lander judges.
 
 READ-ONLY: no edits, no writes anywhere — no redirect `>` into any file — no git writes, no build, test or program run. Bash only for `grep`, `sed -n`, `git diff`, `git show`, `git log`, `wc`. Read only under ROOT and the SPEC file.
 
@@ -16,7 +16,7 @@ READ-ONLY: no edits, no writes anywhere — no redirect `>` into any file — no
 
 ROOT, RANGE `{BASE}..WORKTREE`, SPEC (the request's file) and ROWS (its line range, `{A}-{B}`).
 
-## Walk
+## Check
 
 Budget: 30 tool calls. Keep each output under 20 KB.
 

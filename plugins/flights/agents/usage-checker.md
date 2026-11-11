@@ -1,5 +1,5 @@
 ---
-name: sub-lander
+name: usage-checker
 description: FLIGHTS-LANDER-ONLY Traces changes past their diff — a range of inventory rows (names the diff removed that the tree still holds, matchers that dropped an old spelling) or a batch of threads (contracts, absence, hand-offs, concurrency). Spawned by flights:lander. Returns three-line flags.
 visibility:
   visible-to:
@@ -22,7 +22,7 @@ ROOT, RANGE `{BASE}..WORKTREE`, then either:
   - `GONE {stem} ({file}) · deleted|renamed to {new} · … · {path:line}…`: the diff deleted or renamed that file, yet these lines still name it.
 - or per thread: `T{n} · {kind} · {symbol} · {diff path:line}`, CHANGED (old → new), START (paths to grep first). Kinds: CONTRACT, ABSENCE, HAND-OFF, CONCURRENT.
 
-## Walk
+## Check
 
 Budget: 25 tool calls for the whole batch.
 
