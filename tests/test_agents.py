@@ -18,8 +18,8 @@ SKILLS = PLUGIN / "skills"
 
 # Claude Code names a plugin agent `flights:{frontmatter name}`, a command `flights:{file name}` shown as its
 # frontmatter name when that already starts with `flights:`, a skill `flights:{folder}`.
-AGENT_NAMES = ["diff-checker", "foreman", "foreman-sonnet", "lander", "reviewer", "reviewer-pro", "spec-checker", "speccer",
-               "sub-tracer", "tracer", "usage-checker"]
+AGENT_NAMES = ["diff-checker", "foreman", "foreman-pro", "foreman-sonnet", "lander", "reviewer", "reviewer-pro",
+               "spec-checker", "sub-tracer", "tracer", "usage-checker"]
 COMMAND_NAMES = {"doctor": "flights:doctor", "spec": "flights:spec"}
 SKILL_NAMES = {"lander-inventory": "lander-inventory", "tracer-use": "tracer-use", "tracetree": "tracetree"}
 
@@ -93,7 +93,7 @@ class ShippedNamesTest(unittest.TestCase):
                 self.assertEqual(blocks(parts(path)[0])["name"], f"name: {want}\n", f"{path}: name")
 
     def test_map_reaches_shipped_agents(self):
-        want = {"flights:foreman", "flights:foreman-sonnet", "flights:lander"}
+        want = {"flights:foreman", "flights:foreman-pro", "flights:foreman-sonnet", "flights:lander"}
         self.assertEqual(hook.MAP_AGENT_TYPES, want)
         shipped = {f"flights:{name}" for name in AGENT_NAMES}
         self.assertEqual(hook.MAP_AGENT_TYPES - shipped, set(), f"{AGENTS}: a map agent type no agent carries")
@@ -104,7 +104,7 @@ class FlightContractsTest(unittest.TestCase):
         cast = {
             "foreman": ("opus", "medium"), "foreman-sonnet": ("sonnet", "high"), "lander": ("opus", "medium"),
             "diff-checker": ("opus", None), "spec-checker": ("sonnet", None), "usage-checker": ("haiku", None),
-            "speccer": ("opus", "xhigh"), "reviewer": ("opus", "high"), "reviewer-pro": ("opus", "high"),
+            "foreman-pro": ("opus", "high"), "reviewer": ("opus", "high"), "reviewer-pro": ("opus", "high"),
             "tracer": ("sonnet", "high"), "sub-tracer": ("haiku", "low"),
         }
         self.assertEqual(sorted(cast), AGENT_NAMES, "every shipped agent has its tier")
@@ -130,7 +130,7 @@ class FlightContractsTest(unittest.TestCase):
         self.assertEqual(foreman["tools"], FOREMAN_TOOLS, f"{agent('foreman')}: tools")
 
     def test_waits_stay_inside_the_prompt_cache(self):
-        for name in ("foreman", "foreman-sonnet", "lander"):
+        for name in ("foreman", "foreman-pro", "foreman-sonnet", "lander"):
             with self.subTest(name):
                 body = text(name)
                 self.assertIn("a timeout of at most 270 s", body, f"{agent(name)}: the foreground ceiling")
@@ -168,7 +168,7 @@ class FlightContractsTest(unittest.TestCase):
         # Every spawn of a shipped agent, in any agent or command, names it by its plugin name.
         spawns = [(path.name, name) for path in sorted([*AGENTS.glob("*.md"), *COMMANDS.glob("*.md")])
                   for name in re.findall(r'subagent_type: "?([\w:-]+)', path.read_text(encoding="utf-8"))]
-        self.assertIn(("speccer.md", "flights:tracer"), spawns, "the speccer spawns the tracer")
+        self.assertIn(("foreman-pro.md", "flights:tracer"), spawns, "foreman-pro spawns the tracer")
         self.assertEqual([spawn for spawn in spawns if spawn[1] in AGENT_NAMES], [], "a shipped agent spawned by a bare name")
 
     def test_reviewers_trace_and_size_untracked_source(self):
@@ -184,6 +184,19 @@ class FlightContractsTest(unittest.TestCase):
                 tools = [tool.strip() for tool in blocks(head)["tools"].split(":", 1)[1].split(",")]
                 for button in EFFORT_BUTTONS:
                     self.assertEqual(tools.count(button), 1, f"{agent(name)}: holds {button} once; tools {tools}")
+
+    def test_foreman_pro_designs_at_its_level_before_it_builds(self):
+        head, body = parts(agent("foreman-pro"))
+        self.assertEqual(blocks(head)["skills"], "skills: [ultimate]\n", f"{agent('foreman-pro')}: preloads /ultimate")
+        self.assertIn("include: [main]", head, f"{agent('foreman-pro')}: spawned by the main chat alone")
+        self.assertIn("`LEVEL {0–10}`: how far past the ask the work goes, § Level (absent: 5).", body,
+                      f"{agent('foreman-pro')}: the level and its default")
+        for row in ("| 0–3 | none:", "| 4–6 | `rr`, only", "| 7–8 | `rr-pro`;", "| 9–10 | `rr-pro-max`"):
+            self.assertIn(row, body, f"{agent('foreman-pro')}: the level row {row}")
+        self.assertIn("Write `{flight directory}/design.md` once", body, f"{agent('foreman-pro')}: writes its design")
+        self.assertIn("ends the run here, no edit made: return `BLOCKED`", body,
+                      f"{agent('foreman-pro')}: a user fork returns before any edit")
+        self.assertIn("flights:foreman-pro", (COMMANDS / "spec.md").read_text(encoding="utf-8"), f"{COMMANDS / 'spec.md'}: hands off to foreman-pro")
 
     def test_critical_decisions_go_to_main(self):
         for name in ("foreman", "lander"):
