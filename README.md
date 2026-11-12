@@ -36,24 +36,23 @@ Claude Code names each plugin agent `flights:{name}`: that is the `subagent_type
 | `flights:foreman` | Opus, effort medium | builds one request by its own hand: design choices, ambiguity, unfamiliar code, an unknown cause, cross-module work |
 | `flights:foreman-sonnet` | Sonnet, effort high | the same manual, word for word, for clear work with a pattern to follow |
 | `flights:lander` | Opus, effort medium | takes a worktree to merge-ready once every foreman on it returned: syncs to the target's tip, runs the gate, spawns the review its kit computes |
-| `flights:diff-checker` | Opus | spawned by the lander: one diff cluster's defects, read whole against the spec rows it implements |
-| `flights:spec-checker` | Sonnet | spawned by the lander: a range of the request's numbered rows, each traced to its code |
-| `flights:usage-checker` | Haiku | spawned by the lander: names the diff removed that the tree still holds, and threads past the diff |
+| `flights:diff-checker` | Opus | spawned by the lander and the reviewer: one diff cluster's defects, read whole against the spec rows it implements |
+| `flights:spec-checker` | Sonnet | spawned by the lander and the reviewer: a range of the request's numbered rows, each traced to its code |
+| `flights:usage-checker` | Haiku | spawned by the lander and the reviewer: names the diff removed that the tree still holds, and threads past the diff |
 | `flights:speccer` | Opus, effort xhigh | designs novel work with you before a build, through `/flights:spec` |
 | `flights:tracer` | Sonnet, effort high | answers numbered questions from code: its readers walk each thread hop by hop and its kit re-reads every quoted line from disk |
 | `flights:sub-tracer` | Haiku, effort low | spawned by the tracer: follows one thread of code and writes its hops |
-| `flights:reviewer` | Opus, effort high | reviews a diff range, proving every thread it touches safe up and downstream, with one tracer run |
-| `flights:reviewer-pro` | Opus, effort high | the same for a diff of 10,000+ code lines, with up to three tracer runs grouped by area |
+| `flights:reviewer` | Opus, effort medium | reviews a diff of any size and writes its report, fixing and running nothing: alone on a small diff, on a large one through the review the same kit computes (up to 12 diff-checkers) |
 
 | Command or skill | What it does |
 | --- | --- |
 | `/flights:spec [work \| file]` | grills the request until nothing stays open; returns the `requirements.md` and `spec.md` paths, ready to build |
 | `/flights:doctor [session or agent id]` | measures a flight: landed lines per million input tokens, written and read per agent, the silent share, then where the reading went |
-| `flights:lander-inventory` | the lander's kit, `skills/lander-inventory/lander-inventory.py`: what a diff left behind (`LEFT`, `LITERAL`, `GONE` rows) and the review's spawn `PLAN` |
+| `flights:lander-inventory` | the lander's and the reviewer's kit, `skills/lander-inventory/lander-inventory.py`: what a diff left behind (`LEFT`, `LITERAL`, `GONE` rows) and the review's spawn `PLAN` |
 | `flights:tracetree` | the tracer's kit, `skills/tracetree/tracetree.py`: opens a trace run, stores each reader's hops once, checks every quote against its file, waits for the whole tree and maps the components |
-| `/flights:tracer-use` | the manual of a tracer's caller, preloaded by both reviewers: when to trace, question shapes, drilling a node, the component map |
+| `/flights:tracer-use` | the manual of a tracer's caller: when to trace, question shapes, drilling a node, the component map |
 
-The `effortControl` and `visibility` frontmatter keys take effect with the auto-effort and tool-visibility-controller plugins installed: the foremen's effort is then steered between medium and xhigh, the lander's three reviewers and its kit are visible to the lander alone, the sub-tracer and the tracetree kit to the tracers alone, and the lander and speccer to the main chat alone. Without them Claude Code ignores those keys.
+The `effortControl` and `visibility` frontmatter keys take effect with the auto-effort and tool-visibility-controller plugins installed: the foremen's effort is then steered between medium and xhigh, the three checkers and their kit are visible to the lander and the reviewer alone, the sub-tracer and the tracetree kit to the tracers alone, and the lander and speccer to the main chat alone. Without them Claude Code ignores those keys.
 
 ## The map
 

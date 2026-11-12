@@ -1,6 +1,6 @@
 """Tests for the flights family the plugin ships: each agent, command and skill under its plugin name; the cast's
-tiers; the one long-command wait; the lander's computed review spawn and its kit; critical decisions to main; the
-Sonnet foreman carrying the foreman manual whole; the tracer and the reviewers running the tracetree kit from the plugin;
+tiers; the one long-command wait; the lander's and the reviewer's computed review spawn and their kit; critical decisions to main; the
+Sonnet foreman carrying the foreman manual whole; the tracer running the tracetree kit from the plugin;
 and the codebase map reaching the agents it names."""
 
 import os
@@ -18,7 +18,7 @@ SKILLS = PLUGIN / "skills"
 
 # Claude Code names a plugin agent `flights:{frontmatter name}`, a command `flights:{file name}` shown as its
 # frontmatter name when that already starts with `flights:`, a skill `flights:{folder}`.
-AGENT_NAMES = ["diff-checker", "foreman", "foreman-sonnet", "lander", "reviewer", "reviewer-pro", "spec-checker", "speccer",
+AGENT_NAMES = ["diff-checker", "foreman", "foreman-sonnet", "lander", "reviewer", "spec-checker", "speccer",
                "sub-tracer", "tracer", "usage-checker"]
 COMMAND_NAMES = {"doctor": "flights:doctor", "spec": "flights:spec"}
 SKILL_NAMES = {"lander-inventory": "lander-inventory", "tracer-use": "tracer-use", "tracetree": "tracetree"}
@@ -36,7 +36,6 @@ FOREMAN_KEYS = ["name", "description", "model", "effort", "effortControl", "tool
 EFFORT_CONTROL = "effortControl:\n  floor: medium\n  ceiling: xhigh\n"
 FOREMAN_TOOLS = ("tools: Read, Write, Edit, Bash, Skill, SendMessage, mcp__forward-compaction__forward_compaction, "
                  "mcp__forward-compaction__look_back\n")
-EFFORT_BUTTONS = [f"mcp__auto-effort__effort_{step}" for step in ("up", "down", "auto")]
 KIT_CALL = "python3 -I ${CLAUDE_PLUGIN_ROOT}/skills/lander-inventory/lander-inventory.py "
 TRACETREE_CALL = "python3 ${CLAUDE_PLUGIN_ROOT}/skills/tracetree/tracetree.py"
 CHILD_TOOLS = r"(?m)^tools: Read, Grep, Glob, Bash(, mcp__forward-compaction__(forward_compaction|look_back))*$"
@@ -104,7 +103,7 @@ class FlightContractsTest(unittest.TestCase):
         cast = {
             "foreman": ("opus", "medium"), "foreman-sonnet": ("sonnet", "high"), "lander": ("opus", "medium"),
             "diff-checker": ("opus", None), "spec-checker": ("sonnet", None), "usage-checker": ("haiku", None),
-            "speccer": ("opus", "xhigh"), "reviewer": ("opus", "high"), "reviewer-pro": ("opus", "high"),
+            "speccer": ("opus", "xhigh"), "reviewer": ("opus", "medium"),
             "tracer": ("sonnet", "high"), "sub-tracer": ("haiku", "low"),
         }
         self.assertEqual(sorted(cast), AGENT_NAMES, "every shipped agent has its tier")
@@ -149,7 +148,7 @@ class FlightContractsTest(unittest.TestCase):
             with self.subTest(child):
                 self.assertIn(f"subagent_type: flights:{child}", lander, f"{agent('lander')}: spawns flights:{child}")
                 head = parts(agent(child))[0]
-                self.assertIn("include: [flights:lander]", head, f"{agent(child)}: visible to the lander alone")
+                self.assertIn("include: [flights:lander, flights:reviewer]", head, f"{agent(child)}: visible to its two callers alone")
                 self.assertRegex(head, CHILD_TOOLS, f"{agent(child)}: read-only tools, forward-compaction its only addition")
 
     def test_tracer_runs_the_plugin_kit(self):
@@ -171,19 +170,18 @@ class FlightContractsTest(unittest.TestCase):
         self.assertIn(("speccer.md", "flights:tracer"), spawns, "the speccer spawns the tracer")
         self.assertEqual([spawn for spawn in spawns if spawn[1] in AGENT_NAMES], [], "a shipped agent spawned by a bare name")
 
-    def test_reviewers_trace_and_size_untracked_source(self):
-        for name in ("reviewer", "reviewer-pro"):
-            with self.subTest(name):
-                head, body = parts(agent(name))
-                self.assertEqual(blocks(head)["skills"], "skills: [flights:tracer-use]\n", f"{agent(name)}: preloads the tracer manual")
-                self.assertIn("subagent_type: flights:tracer", body, f"{agent(name)}: spawns flights:tracer")
-                self.assertIn("untracked line count", body, f"{agent(name)}: sizes untracked source")
-                self.assertIn("HEAD `WORKTREE`", body, f"{agent(name)}: reviews the uncommitted tree")
-                # auto-effort steers a reviewer: effortControl on, and each effort button in its tools once.
-                self.assertEqual(blocks(head)["effortControl"], "effortControl: on\n", f"{agent(name)}: effortControl")
-                tools = [tool.strip() for tool in blocks(head)["tools"].split(":", 1)[1].split(",")]
-                for button in EFFORT_BUTTONS:
-                    self.assertEqual(tools.count(button), 1, f"{agent(name)}: holds {button} once; tools {tools}")
+    def test_reviewer_spawns_its_computed_plan_and_writes_no_code(self):
+        head, body = parts(agent("reviewer"))
+        self.assertIn(KIT_CALL + "{TREE} {BASE} {HEAD} --own --cluster-lines 750 --max-diff-checkers 12 ", body,
+                      f"{agent('reviewer')}: the plan comes from the lander's kit, cut for a review")
+        self.assertIn("ONE message spawning exactly the PLAN rows", body, f"{agent('reviewer')}: the spawn is the plan")
+        for child in ("diff-checker", "spec-checker", "usage-checker"):
+            with self.subTest(child):
+                self.assertIn(f"subagent_type: flights:{child}", body, f"{agent('reviewer')}: spawns flights:{child}")
+        # Read-only by its tools: Write for the report alone, no Edit.
+        self.assertEqual(blocks(head)["tools"], "tools: Read, Write, Bash, Agent, mcp__forward-compaction__forward_compaction, "
+                         "mcp__forward-compaction__look_back\n", f"{agent('reviewer')}: tools")
+        self.assertNotRegex(body, r"/(Users|home)/", f"{agent('reviewer')}: no machine-absolute path")
 
     def test_critical_decisions_go_to_main(self):
         for name in ("foreman", "lander"):

@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 """lander-inventory: threads a lander hands to usage-checkers before reading the diff.
 
-usage: lander-inventory.py WORKTREE BASE [HEAD] [--spec FILE ...]
+usage: lander-inventory.py WORKTREE BASE [HEAD] [--spec FILE ...] [--paths PATHSPEC ...]
+                           [--cluster-lines N] [--max-diff-checkers N] [--own]
 
 The diff is BASE against the working tree — commits, staged, unstaged and untracked work —
-or, with HEAD, the commits BASE..HEAD.
+or, with HEAD, the commits BASE..HEAD; --paths narrows it to those pathspecs.
 
 LEFT  a name the diff removed everywhere it touched, still present in the tree
 LITERAL  a gone name that sat inside a string or key on a replaced code/data line
          (a matcher or stored format that may still meet the old spelling)
 GONE  a file the diff deleted or renamed away, still named in the tree
-PLAN  the spawn: diff-checkers over production-diff clusters, spec-checkers over numbered
-      spec rows, usage-checkers over the rows above by line number; the lander spawns
-      exactly these rows
+PLAN  the spawn: diff-checkers over production-diff clusters (--cluster-lines N sets their
+      size, --max-diff-checkers N their cap), spec-checkers over numbered spec rows,
+      usage-checkers over the rows above by line number; the caller spawns exactly these rows. --own adds PLAN OWN, the changed
+      files no diff-checker reads.
 Exit 0 with the lists; exit 2 with FAILED and the cause when git or the input breaks.
 """
-import re, subprocess, sys
+import argparse, re, subprocess, sys
 from collections import defaultdict
 
 TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_\-]*[A-Za-z0-9_]")
@@ -49,9 +51,9 @@ def git(wt, *args):
     return p.stdout
 
 
-def untracked(wt, head):
+def untracked(wt, head, paths):
     # untracked, unignored files: new work the diff against the working tree must carry
-    return [] if head else [f for f in git(wt, "ls-files", "-z", "--others", "--exclude-standard").split("\0") if f]
+    return [] if head else [f for f in git(wt, "ls-files", "-z", "--others", "--exclude-standard", *paths).split("\0") if f]
 
 
 def lines_of(wt, f):
@@ -85,19 +87,20 @@ def segments(t):
 
 
 def main():
-    argv, specs = sys.argv[1:], []
-    if "--spec" in argv:
-        i = argv.index("--spec")
-        argv, specs = argv[:i], argv[i + 1:]
-    if len(argv) < 2:
-        sys.stdout.write(__doc__); sys.exit(2)
-    wt, base = argv[0], argv[1]
-    head = argv[2] if len(argv) > 2 else None  # None: the working tree
-    rev = [base, head] if head else [base]
-    label = f"{base}..{head or 'WORKTREE'}"
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.error = lambda message: (sys.stdout.write(__doc__), sys.exit(2))
+    ap.add_argument("worktree"); ap.add_argument("base"); ap.add_argument("head", nargs="?")  # no HEAD: the working tree
+    ap.add_argument("--spec", nargs="*", default=[]); ap.add_argument("--paths", nargs="*", default=[])
+    ap.add_argument("--cluster-lines", type=int, default=DIFF_CHECK_SIZE); ap.add_argument("--max-diff-checkers", type=int, default=MAX_DIFF_CHECK)
+    ap.add_argument("--own", action="store_true")
+    a = ap.parse_args()
+    wt, base, head, specs = a.worktree, a.base, a.head, a.spec
+    paths = ["--", *a.paths] if a.paths else []
+    rev = ([base, head] if head else [base]) + paths  # every diff below ends on rev, so each is narrowed alike
+    label = f"{base}..{head or 'WORKTREE'}" + (f" -- {' '.join(a.paths)}" if a.paths else "")
     # git grep searches the tree the diff measured: the HEAD revision, or the working tree with untracked files
     gopt, grev = ([], [head]) if head else (["--untracked"], [])
-    new = untracked(wt, head)
+    new = untracked(wt, head, paths)
     diff = git(wt, "diff", "--no-color", "-U0", "--no-ext-diff", *rev)
     for f in new:
         diff += git(wt, "diff", "--no-index", "--no-color", "-U0", "--no-ext-diff", "--", "/dev/null", f)
@@ -215,15 +218,15 @@ def main():
     for t, locs, ntest in split[:MAX_SWAP]:
         w(f"LITERAL {t} · {len(locs)} lines here, {ntest} in tests · {' '.join(locs[:MAX_LOC])}{' +' + str(len(locs) - MAX_LOC) if len(locs) > MAX_LOC else ''}\n")
 
-    plan(wt, rev, new, specs)
+    plan(wt, rev, new, specs, a.cluster_lines, a.max_diff_checkers, a.own)
     sys.stdout.write("".join(OUT))
 
 
-def plan(wt, rev, new, specs):
+def plan(wt, rev, new, specs, cluster_lines, max_diff_check, with_own):
     """The spawn, computed, so two runs on one input spawn alike."""
     rows = []  # PLAN lines, appended after the inventory so its line numbers stay put
     # diff-checkers: production diff in path order, cut into equal clusters
-    prod, tests = [], defaultdict(list)
+    prod, tests, taken = [], defaultdict(list), set()
     names = {f.rsplit("/", 1)[-1] for f in git(wt, "diff", "--name-only", "--no-renames", *rev).splitlines() + new}
     # deleted files have no code left to hunt (GONE rows cover their names)
     stat = [row.split("\t") for row in git(wt, "diff", "--numstat", "--no-renames", "--diff-filter=d", *rev).splitlines()]
@@ -242,7 +245,7 @@ def plan(wt, rev, new, specs):
     if total <= DIFF_CHECK_MIN:
         rows.append(f"PLAN DIFF-CHECKERS none · production diff {total} lines <= {DIFF_CHECK_MIN}: the whole hunt is yours\n")
     else:
-        k = min(MAX_DIFF_CHECK, -(-total // DIFF_CHECK_SIZE))
+        k = min(max_diff_check, -(-total // cluster_lines))
         clusters, cur, acc = [], [], 0
         for f, n in prod:
             cur.append((f, n)); acc += n
@@ -255,8 +258,13 @@ def plan(wt, rev, new, specs):
             base_names = {"test-" + f.rsplit("/", 1)[-1] for f, _ in c}
             t = sorted({x for d in dirs for x in tests.get(d, [])}
                        | {x for xs in tests.values() for x in xs if x.rsplit("/", 1)[-1] in base_names})
+            taken.update(t); taken.update(f for f, _ in c)
             rows.append(f"PLAN DIFF-CHECKER {i} · {sum(n for _, n in c)} lines · {' '.join(f for f, _ in c)}"
                         f" · tests {' '.join(t) if t else 'none'}\n")
+    if with_own:  # what no diff-checker reads: docs, prompts, tests no cluster took; with no diff-checker, the whole diff
+        size = {parts[2]: int(parts[0]) + int(parts[1]) for parts in stat if len(parts) == 3 and parts[0] != "-"}
+        own = sorted(f for f in size if f not in taken)
+        rows.append(f"PLAN OWN {sum(size[f] for f in own)} lines · {' '.join(own) if own else 'none'}\n")
     # spec-checkers: numbered rows, the largest spec first, at most MAX_SPEC_CHECK ranges
     found = []
     for sp in specs:
