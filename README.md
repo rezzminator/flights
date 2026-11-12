@@ -2,7 +2,7 @@
 
 # flights
 
-**Claude Code plugin for the flights agents that build and land work — three foremen (foreman-pro designs before it builds), a lander with its three reviewers, a speccer, /flights:spec and /flights:doctor — and a codebase map, ponytail's symbol map ported: one line per source folder naming its exported functions, classes and types, within 2,000 characters, given to the main chat and the flights builder agents at their start, cached per commit**
+**Claude Code plugin for the flights agents that build and land work — two foremen, a lander with its three reviewers, a speccer, /flights:spec and /flights:doctor — and a codebase map, ponytail's symbol map ported: one line per source folder naming its exported functions, classes and types, within 2,000 characters, given to the main chat and the flights builder agents at their start, cached per commit**
 
 [![CI](https://github.com/rezzminator/flights/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/rezzminator/flights/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](./CHANGELOG.md)
@@ -39,8 +39,7 @@ Claude Code names each plugin agent `flights:{name}`: that is the `subagent_type
 | `flights:diff-checker` | Opus | spawned by the lander: one diff cluster's defects, read whole against the spec rows it implements |
 | `flights:spec-checker` | Sonnet | spawned by the lander: a range of the request's numbered rows, each traced to its code |
 | `flights:usage-checker` | Haiku | spawned by the lander: names the diff removed that the tree still holds, and threads past the diff |
-| `flights:foreman-pro` | Opus, effort high | designs, then builds greenfield work: a new thing built from nothing, meant to be really good; a change to what exists, however risky, and a build from a `spec.md` go to `flights:foreman`; one fixed depth (the simplest design that meets the words, `rr` only for a question the code cannot settle), `/ultimate` preloaded |
-| `flights:speccer` | Opus, effort xhigh | designs novel work with you before a build, through `/flights:spec`; writes `spec.md` and builds nothing |
+| `flights:speccer` | Opus, effort xhigh | designs novel work with you before a build, through `/flights:spec` |
 | `flights:tracer` | Sonnet, effort high | answers numbered questions from code: its readers walk each thread hop by hop and its kit re-reads every quoted line from disk |
 | `flights:sub-tracer` | Haiku, effort low | spawned by the tracer: follows one thread of code and writes its hops |
 | `flights:reviewer` | Opus, effort high | reviews a diff range, proving every thread it touches safe up and downstream, with one tracer run |
@@ -54,7 +53,7 @@ Claude Code names each plugin agent `flights:{name}`: that is the `subagent_type
 | `flights:tracetree` | the tracer's kit, `skills/tracetree/tracetree.py`: opens a trace run, stores each reader's hops once, checks every quote against its file, waits for the whole tree and maps the components |
 | `/flights:tracer-use` | the manual of a tracer's caller, preloaded by both reviewers: when to trace, question shapes, drilling a node, the component map |
 
-The `effortControl` and `visibility` frontmatter keys take effect with the auto-effort and tool-visibility-controller plugins installed: the foremen's effort is then steered between medium and xhigh, the lander's three reviewers and its kit are visible to the lander alone, the sub-tracer and the tracetree kit to the tracers alone, and the lander, foreman-pro and the speccer to the main chat alone. Without them Claude Code ignores those keys.
+The `effortControl` and `visibility` frontmatter keys take effect with the auto-effort and tool-visibility-controller plugins installed: the foremen's effort is then steered between medium and xhigh, the lander's three reviewers and its kit are visible to the lander alone, the sub-tracer and the tracetree kit to the tracers alone, and the lander and speccer to the main chat alone. Without them Claude Code ignores those keys.
 
 ## The map
 
@@ -96,7 +95,7 @@ web/: render, VERSION, Page
 
 ## How it works
 
-- **Who receives it.** The main chat at `SessionStart` (startup, resume, clear and compact). A sub-agent at `SubagentStart` only when its type is `flights:foreman`, `flights:foreman-pro`, `flights:foreman-sonnet` or `flights:lander`; every other sub-agent receives nothing, the lander's reviewers included.
+- **Who receives it.** The main chat at `SessionStart` (startup, resume, clear and compact). A sub-agent at `SubagentStart` only when its type is `flights:foreman`, `flights:foreman-sonnet` or `flights:lander`; every other sub-agent receives nothing, the lander's reviewers included.
 - **The same map wherever the session starts.** A session started in a subfolder gets the map of the whole repository, from its root.
 - **Cached per commit.** The map is kept per `HEAD` commit under `${XDG_CACHE_HOME:-$HOME/.cache}/flights/map/`, one build for every work tree at that commit: the main checkout and its worktrees share it. A new commit builds a new map. A worktree's changed folders are read afresh at each start.
 - **A week of cache.** Each build that lands removes the cache's files last written more than 7 days ago: maps of commits left behind, failure reasons, and temp files a killed build left.

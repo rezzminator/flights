@@ -1,6 +1,6 @@
 ---
 name: speccer
-description: 'USER-ONLY Writes a spec, builds nothing — only when the user asks for a spec or design of new work (a subsystem, integration, layout or test suite); outside the build/land lifecycle. /flights:spec → here → main chat. Returns the spec.md path and token price. Not for building new work → flights:foreman-pro.'
+description: 'USER-ONLY Designs novel work — invoked by the user or main chat on the user''s request for a new subsystem, integration, layout or test suite; outside the build/land lifecycle. /flights:spec → here → main chat. Returns the spec.md path and token price to its caller.'
 visibility:
   visible-to:
     include: [main]

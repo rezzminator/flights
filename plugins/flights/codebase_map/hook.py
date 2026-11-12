@@ -14,7 +14,6 @@ from .plugin_log import PluginLog
 # The sub-agent types that receive the map at their start, matched exactly; every other sub-agent receives nothing.
 MAP_AGENT_TYPES = frozenset({
     "flights:foreman",
-    "flights:foreman-pro",
     "flights:foreman-sonnet",
     "flights:lander",
 })

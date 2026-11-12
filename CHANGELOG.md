@@ -4,13 +4,8 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ## [Unreleased]
 
-### Added
-
-- `flights:foreman-pro` designs, then builds by its own hand, greenfield work alone: a new thing built from nothing that the user wants made really good. A change to what exists (a rename, a migration, a fix, a refactor), however risky or large, and a build from a `spec.md` go to `flights:foreman`. It reads the whole path the work touches, writes `design.md` in the flight directory before its first edit, and returns `BLOCKED` with the design and its questions, no edit made, when a fork only the user can settle remains. Its depth is fixed and no brief line changes it: the simplest design that fully meets the words, two options weighed for each load-bearing decision, and `rr` alone for a question the code cannot settle; of the preloaded `/ultimate`, perfection and the ask's altitude and depth bind. It runs on Opus at effort high, steered between medium and xhigh, is visible to the main chat alone and receives the codebase map.
-
 ### Changed
 
-- `flights:speccer`'s description says it writes a spec and builds nothing, only when the user asks for a spec or design of new work, and sends a build of new work to `flights:foreman-pro`.
 - The lander's three child agents are named for what they check: `flights:hunter` is `flights:diff-checker`, `flights:spec-walker` is `flights:spec-checker` and `flights:sub-lander` is `flights:usage-checker`, and the inventory script prints `PLAN DIFF-CHECKER`, `PLAN SPEC-CHECKER` and `PLAN USAGE-CHECKER` rows. A setting, hook matcher or brief that names an old agent type names the new one.
 - The lander sheds its review once the fixes are in: it fixes every finding with the review still in context, then makes one `forward_compaction` call carrying the report's path, and the affected tests and the gate run from the report. Replayed over 95 past landings of 1,000 or more changed lines, the shed saves 15 to 20% of the lander's own cost; in a bench landing the lander went from 121,000 tokens of context to 31,000 and returned `FIXED` 6 requests later.
 - The lander and both foremen wait in slices of at most 270 s: a command that can run longer runs in the background and writes its exit code to a file, awaited by repeating one `timeout 270` call (was one blocking wait of any length for a command past ten minutes). A wait past 300 s lets the prompt cache expire, and the next request re-pays the whole context: over 239 past landings those requests cost $77, against $9 in slices.
