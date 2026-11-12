@@ -1,16 +1,16 @@
 ---
 name: flights:spec
-description: 'Grills until nothing stays open — /flights:spec [work | file], or asks like "grill me", "roast my plan", "settle the requirements" before a build. /flights:spec → main chat → flights:foreman, or flights:foreman-pro for greenfield → flights:lander → gitter. Returns the requirements.md path, ready to build.'
+description: 'Grills until nothing stays open — /flights:spec [work | file], or asks like "grill me", "roast my plan", "settle the requirements" before a build. /flights:spec → flights:speccer → main chat → flights:foreman. Returns the requirements.md and spec.md paths, ready to build.'
 argument-hint: '[work | file holding it]'
 ---
 
-# Spec — settle the work before its build
+# Spec — settle the work, then spec it
 
-One deliverable in the flight directory `$HOME/.local/state/pfm/flights/{project}/{flight}/`: `requirements.md`, written by you once the grill leaves no decision open; the foreman the `flights-life-cycle` rule picks builds from it. You walk, grill and write; you build nothing, and the build waits for the user's go. Input: $ARGUMENTS — the work inline, a file holding it, or nothing (then ask what the work is for). `{project}` is the checkout's directory name minus any leading dot; `{flight}` is short kebab-case, with `-v2` appended on a collision under `$HOME/.local/state/pfm/flights/{project}/`.
+Two deliverables in the flight directory `$HOME/.local/state/pfm/flights/{project}/{flight}/`: `requirements.md`, written by you once the grill leaves no decision open, and `spec.md`, written from it by `flights:speccer`. You walk, grill, write and hand off; you build nothing, and the spec waits for the user's go. Input: $ARGUMENTS — the work inline, a file holding it, or nothing (then ask what the work is for). `{project}` is the checkout's directory name minus any leading dot; `{flight}` is short kebab-case, with `-v2` appended on a collision under `$HOME/.local/state/pfm/flights/{project}/`.
 
 ## S1 — Walk only what asking needs
 
-Read the child `CLAUDE.md` of every project the work touches (the root one you already hold): S2 must not re-ask what they settle. A fact a question needs goes to `Agent(subagent_type: "flights:tracer")` as numbered questions, all probes in one message; end your message after spawning, the answers arrive on their own. The walk stops at what a good question needs: the foreman reads the material itself, so a map built here for it is reading paid twice.
+Read the child `CLAUDE.md` of every project the work touches (the root one you already hold): S2 must not re-ask what they settle. A fact a question needs goes to `Agent(subagent_type: "flights:tracer")` as numbered questions, all probes in one message; end your message after spawning, the answers arrive on their own. The walk stops at what a good question needs: the speccer reads the material itself, so a map built here for it is reading paid twice.
 
 A referent that does not exist, or two parts of the work that would edit one target, is a question for S2, never a silent fix.
 
@@ -32,7 +32,7 @@ Work the tree in rounds. The frontier is every open decision whose prerequisites
 Recommended: {your answer and the one reason}
 ```
 
-Each answer reshapes the tree; recompute the frontier and ask the next round. Facts are yours to find, decisions are the user's; one the user hands back ("you pick") takes your recommendation as its ruling, marked `delegated`. The grill ends when the frontier is empty: no decision is left for the build that the user did not rule or delegate. Restate the rulings as one numbered list and go on only once the user confirms it is the shared understanding. Under god speed you rule every question yourself, each marked `delegated`, and skip the confirmation; a protected-data channel the user did not name still gets no default: take the option that moves no protected data, or cut that work from scope.
+Each answer reshapes the tree; recompute the frontier and ask the next round. Facts are yours to find, decisions are the user's; one the user hands back ("you pick") takes your recommendation as its ruling, marked `delegated`. The grill ends when the frontier is empty: no decision is left for the speccer that the user did not rule or delegate. Restate the rulings as one numbered list and go on only once the user confirms it is the shared understanding. Under god speed you rule every question yourself, each marked `delegated`, and skip the confirmation; a protected-data channel the user did not name still gets no default: take the option that moves no protected data, or cut that work from scope.
 
 ## S3 — Write the requirements
 
@@ -45,10 +45,14 @@ Write `requirements.md`:
 - `## Standing rules`: the fence, the child `CLAUDE.md` paths the work touches, each touched unit's testing manual path.
 - `## Evidence`: the path of each tracer `RUN` you received, never its content.
 
-## S4 — Hand off
+## S4 — Hand off to the speccer
 
-Present the absolute path of `requirements.md` and its rulings count. The build starts on the user's go, at once under god speed: the main chat runs the flights life cycle (the `flights-life-cycle` rule) with `requirements.md` as the request, each brief naming `requirements.md`, the flight directory, the tracer `RUN` paths, each touched unit's testing manual path, and god speed when the user's prompt carried it.
+Spawn one `Agent(subagent_type: "flights:speccer")` whose prompt names `requirements.md`, the flight directory, the tracer `RUN` paths, each touched unit's testing manual path, and god speed when the user's prompt carried it. End your message; the return arrives on its own.
 
-Greenfield work, a new thing built from nothing, is `flights:foreman-pro`'s; a change to what exists (a rename, a migration, a fix, a refactor), however risky or large, is `flights:foreman`'s. For greenfield work alone, present the `LEVEL` you recommend with its one reason (0 the simplest design that meets the words, 10 the ultimate the goal admits; above 6 only where the user's words ask for that ambition, never for risk or size); the brief carries the `LEVEL` the user accepts, and none where the user's words set none.
+## S5 — Close every gap
 
-A `flights:foreman-pro` `BLOCKED` return's questions go to the user in one round holding those questions alone, in S2's shape; under god speed, rule them yourself as S2 does. Append the rulings to `## Rulings`, then spawn a fresh `flights:foreman-pro` with the same brief plus its `design.md` and the new rulings as its reason. Each such round is a decision S2 missed.
+A `BLOCKED` return, or a `SPEC` whose `OPEN` holds a question for the user, goes to the user in one round holding those questions alone, in S2's shape; under god speed, rule them yourself as S2 does. Append the rulings to `## Rulings`, then spawn a fresh `flights:speccer` with S4's brief plus the existing `spec.md` and the new rulings as its reason; it edits the spec in place. Repeat until the return is `SPEC` with no question for the user left in `OPEN`. Each such round is a decision S2 missed.
+
+## Present
+
+The speccer's last return as it came — its first line (a `PARTIAL` included), `BOLDEST`, `ROWS`, `COST`, `OPEN` — then the absolute paths of `requirements.md` and `spec.md`, the number of S5 rounds and the decision each one closed, and that the spec is ready to build. The build starts only on the user's go: the main chat then runs the flights life cycle (the `flights-life-cycle` rule) with `spec.md` as the request.
