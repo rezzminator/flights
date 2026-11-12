@@ -21,7 +21,7 @@ SKILLS = PLUGIN / "skills"
 AGENT_NAMES = ["diff-checker", "foreman", "foreman-sonnet", "lander", "reviewer", "spec-checker", "speccer",
                "sub-tracer", "tracer", "usage-checker"]
 COMMAND_NAMES = {"doctor": "flights:doctor", "spec": "flights:spec"}
-SKILL_NAMES = {"lander-inventory": "lander-inventory", "tracer-use": "tracer-use", "tracetree": "tracetree"}
+SKILL_NAMES = {"lander-inventory": "lander-inventory", "trace-guide": "trace-guide", "tracetree": "tracetree"}
 
 # The frontmatter lines in which the Sonnet foreman differs from the foreman, whole.
 SONNET_FOREMAN_LINES = {
@@ -154,7 +154,7 @@ class FlightContractsTest(unittest.TestCase):
     def test_tracer_runs_the_plugin_kit(self):
         kit = Path(TRACETREE_CALL.split()[1].replace("${CLAUDE_PLUGIN_ROOT}", PLUGIN_DIR))
         self.assertTrue(kit.is_file(), f"{kit}: the tracetree kit ships")
-        for path in (agent("tracer"), agent("sub-tracer"), SKILLS / "tracetree" / "SKILL.md", SKILLS / "tracer-use" / "SKILL.md"):
+        for path in (agent("tracer"), agent("sub-tracer"), SKILLS / "tracetree" / "SKILL.md", SKILLS / "trace-guide" / "SKILL.md"):
             with self.subTest(path.name):
                 body = path.read_text(encoding="utf-8")
                 self.assertIn(TRACETREE_CALL, body, f"{path}: the kit runs from the plugin")

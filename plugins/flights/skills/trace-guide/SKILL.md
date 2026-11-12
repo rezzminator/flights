@@ -1,9 +1,9 @@
 ---
-name: tracer-use
+name: trace-guide
 description: 'MANDATORY for a flights:tracer caller — before sending tracer questions, and on an answer ending `RUN {path}` or `MAP {path}`: when to trace, question shapes, drilling a node, exact lines for a brief, the map `--from`/`--to`, JSON, a page on request, a run handed to a child. flights:tracer → here.'
 ---
 
-# tracer-use
+# trace-guide
 
 `flights:tracer` answers numbered questions from code: Haiku readers walk each thread hop by hop and its kit re-reads every quoted line from disk, at a third of what your own reading costs. Each trace is a run, `{RUN}`, a directory under `/tmp/{project}/tracer/` holding one write-once `{ID}.hops` file per reader and `map.txt`. Every command below re-reads each quoted line from the repository when you run it, so it prints the file's current text, never the tracer's memory of it. `tt` stands for `python3 ${CLAUDE_PLUGIN_ROOT}/skills/tracetree/tracetree.py` — write it out in full in every call, the path exactly as written here and never shortened with `~`, which a quoted string or variable leaves unexpanded.
 

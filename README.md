@@ -50,7 +50,7 @@ Claude Code names each plugin agent `flights:{name}`: that is the `subagent_type
 | `/flights:doctor [session or agent id]` | measures a flight: landed lines per million input tokens, written and read per agent, the silent share, then where the reading went |
 | `flights:lander-inventory` | the lander's and the reviewer's kit, `skills/lander-inventory/lander-inventory.py`: what a diff left behind (`LEFT`, `LITERAL`, `GONE` rows) and the review's spawn `PLAN` |
 | `flights:tracetree` | the tracer's kit, `skills/tracetree/tracetree.py`: opens a trace run, stores each reader's hops once, checks every quote against its file, waits for the whole tree and maps the components |
-| `/flights:tracer-use` | the manual of a tracer's caller: when to trace, question shapes, drilling a node, the component map |
+| `/flights:trace-guide` | the manual of a tracer's caller: when to trace, question shapes, drilling a node, the component map |
 
 The `effortControl` and `visibility` frontmatter keys take effect with the auto-effort and tool-visibility-controller plugins installed: the foremen's effort is then steered between medium and xhigh, the three checkers and their kit are visible to the lander and the reviewer alone, the sub-tracer and the tracetree kit to the tracers alone, and the lander and speccer to the main chat alone. Without them Claude Code ignores those keys.
 
