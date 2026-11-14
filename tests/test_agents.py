@@ -1,6 +1,6 @@
 """Tests for the flights family the plugin ships: each agent, command and skill under its plugin name; the cast's
-tiers; the one long-command wait; the lander's computed review spawn and its kit; critical decisions to main; the
-Sonnet foreman carrying the foreman manual whole; the tracer and the reviewers running the tracetree kit from the plugin;
+tiers; the one long-command wait; the lander's and the reviewer's computed review spawn and their kit; critical decisions to main; the
+Sonnet foreman carrying the foreman manual whole; the tracer running the tracetree kit from the plugin;
 and the codebase map reaching the agents it names."""
 
 import os
@@ -18,10 +18,10 @@ SKILLS = PLUGIN / "skills"
 
 # Claude Code names a plugin agent `flights:{frontmatter name}`, a command `flights:{file name}` shown as its
 # frontmatter name when that already starts with `flights:`, a skill `flights:{folder}`.
-AGENT_NAMES = ["foreman", "foreman-sonnet", "hunter", "lander", "reviewer", "reviewer-pro", "spec-walker", "speccer",
-               "sub-lander", "sub-tracer", "tracer"]
+AGENT_NAMES = ["diff-checker", "foreman", "foreman-sonnet", "lander", "reviewer", "spec-checker", "speccer",
+               "sub-tracer", "tracer", "usage-checker"]
 COMMAND_NAMES = {"doctor": "flights:doctor", "spec": "flights:spec"}
-SKILL_NAMES = {"lander-inventory": "lander-inventory", "tracer-use": "tracer-use", "tracetree": "tracetree"}
+SKILL_NAMES = {"lander-inventory": "lander-inventory", "trace-guide": "trace-guide", "tracetree": "tracetree"}
 
 # The frontmatter lines in which the Sonnet foreman differs from the foreman, whole.
 SONNET_FOREMAN_LINES = {
@@ -36,7 +36,6 @@ FOREMAN_KEYS = ["name", "description", "model", "effort", "effortControl", "tool
 EFFORT_CONTROL = "effortControl:\n  floor: medium\n  ceiling: xhigh\n"
 FOREMAN_TOOLS = ("tools: Read, Write, Edit, Bash, Skill, SendMessage, mcp__forward-compaction__forward_compaction, "
                  "mcp__forward-compaction__look_back\n")
-EFFORT_BUTTONS = [f"mcp__auto-effort__effort_{step}" for step in ("up", "down", "auto")]
 KIT_CALL = "python3 -I ${CLAUDE_PLUGIN_ROOT}/skills/lander-inventory/lander-inventory.py "
 TRACETREE_CALL = "python3 ${CLAUDE_PLUGIN_ROOT}/skills/tracetree/tracetree.py"
 CHILD_TOOLS = r"(?m)^tools: Read, Grep, Glob, Bash(, mcp__forward-compaction__(forward_compaction|look_back))*$"
@@ -103,8 +102,8 @@ class FlightContractsTest(unittest.TestCase):
     def test_cast_tiers(self):
         cast = {
             "foreman": ("opus", "medium"), "foreman-sonnet": ("sonnet", "high"), "lander": ("opus", "medium"),
-            "hunter": ("opus", None), "spec-walker": ("sonnet", None), "sub-lander": ("haiku", None),
-            "speccer": ("opus", "xhigh"), "reviewer": ("opus", "high"), "reviewer-pro": ("opus", "high"),
+            "diff-checker": ("opus", None), "spec-checker": ("sonnet", None), "usage-checker": ("haiku", None),
+            "speccer": ("opus", "xhigh"), "reviewer": ("opus", "medium"),
             "tracer": ("sonnet", "high"), "sub-tracer": ("haiku", "low"),
         }
         self.assertEqual(sorted(cast), AGENT_NAMES, "every shipped agent has its tier")
@@ -129,12 +128,12 @@ class FlightContractsTest(unittest.TestCase):
         self.assertEqual(foreman["effortControl"], EFFORT_CONTROL, f"{agent('foreman')}: effortControl")
         self.assertEqual(foreman["tools"], FOREMAN_TOOLS, f"{agent('foreman')}: tools")
 
-    def test_one_blocking_wait_past_ten_minutes(self):
+    def test_waits_stay_inside_the_prompt_cache(self):
         for name in ("foreman", "foreman-sonnet", "lander"):
             with self.subTest(name):
                 body = text(name)
-                self.assertIn("longer than 10 minutes", body, f"{agent(name)}: the long-command threshold")
-                self.assertIn("timeout {s} bash -c 'until [ -s \"$1\" ]", body, f"{agent(name)}: the one blocking wait")
+                self.assertIn("a timeout of at most 270 s", body, f"{agent(name)}: the foreground ceiling")
+                self.assertIn("timeout 270 bash -c 'until [ -s \"$1\" ]", body, f"{agent(name)}: the repeated wait")
 
     def test_lander_spawns_its_computed_plan(self):
         lander = text("lander")
@@ -145,17 +144,17 @@ class FlightContractsTest(unittest.TestCase):
         self.assertNotRegex(lander, r"/(Users|home)/", f"{agent('lander')}: no machine-absolute path")
         self.assertIn("ONE message spawning exactly the PLAN rows", lander, f"{agent('lander')}: the spawn is the plan")
         self.assertIn("ls-files --others --exclude-standard", lander, f"{agent('lander')}: reads untracked source")
-        for child in ("hunter", "spec-walker", "sub-lander"):
+        for child in ("diff-checker", "spec-checker", "usage-checker"):
             with self.subTest(child):
                 self.assertIn(f"subagent_type: flights:{child}", lander, f"{agent('lander')}: spawns flights:{child}")
                 head = parts(agent(child))[0]
-                self.assertIn("include: [flights:lander]", head, f"{agent(child)}: visible to the lander alone")
+                self.assertIn("include: [flights:lander, flights:reviewer]", head, f"{agent(child)}: visible to its two callers alone")
                 self.assertRegex(head, CHILD_TOOLS, f"{agent(child)}: read-only tools, forward-compaction its only addition")
 
     def test_tracer_runs_the_plugin_kit(self):
         kit = Path(TRACETREE_CALL.split()[1].replace("${CLAUDE_PLUGIN_ROOT}", PLUGIN_DIR))
         self.assertTrue(kit.is_file(), f"{kit}: the tracetree kit ships")
-        for path in (agent("tracer"), agent("sub-tracer"), SKILLS / "tracetree" / "SKILL.md", SKILLS / "tracer-use" / "SKILL.md"):
+        for path in (agent("tracer"), agent("sub-tracer"), SKILLS / "tracetree" / "SKILL.md", SKILLS / "trace-guide" / "SKILL.md"):
             with self.subTest(path.name):
                 body = path.read_text(encoding="utf-8")
                 self.assertIn(TRACETREE_CALL, body, f"{path}: the kit runs from the plugin")
@@ -171,19 +170,18 @@ class FlightContractsTest(unittest.TestCase):
         self.assertIn(("speccer.md", "flights:tracer"), spawns, "the speccer spawns the tracer")
         self.assertEqual([spawn for spawn in spawns if spawn[1] in AGENT_NAMES], [], "a shipped agent spawned by a bare name")
 
-    def test_reviewers_trace_and_size_untracked_source(self):
-        for name in ("reviewer", "reviewer-pro"):
-            with self.subTest(name):
-                head, body = parts(agent(name))
-                self.assertEqual(blocks(head)["skills"], "skills: [flights:tracer-use]\n", f"{agent(name)}: preloads the tracer manual")
-                self.assertIn("subagent_type: flights:tracer", body, f"{agent(name)}: spawns flights:tracer")
-                self.assertIn("untracked line count", body, f"{agent(name)}: sizes untracked source")
-                self.assertIn("HEAD `WORKTREE`", body, f"{agent(name)}: reviews the uncommitted tree")
-                # auto-effort steers a reviewer: effortControl on, and each effort button in its tools once.
-                self.assertEqual(blocks(head)["effortControl"], "effortControl: on\n", f"{agent(name)}: effortControl")
-                tools = [tool.strip() for tool in blocks(head)["tools"].split(":", 1)[1].split(",")]
-                for button in EFFORT_BUTTONS:
-                    self.assertEqual(tools.count(button), 1, f"{agent(name)}: holds {button} once; tools {tools}")
+    def test_reviewer_spawns_its_computed_plan_and_writes_no_code(self):
+        head, body = parts(agent("reviewer"))
+        self.assertIn(KIT_CALL + "{TREE} {BASE} {HEAD} --own --cluster-lines 750 --max-diff-checkers 12 ", body,
+                      f"{agent('reviewer')}: the plan comes from the lander's kit, cut for a review")
+        self.assertIn("ONE message spawning exactly the PLAN rows", body, f"{agent('reviewer')}: the spawn is the plan")
+        for child in ("diff-checker", "spec-checker", "usage-checker"):
+            with self.subTest(child):
+                self.assertIn(f"subagent_type: flights:{child}", body, f"{agent('reviewer')}: spawns flights:{child}")
+        # Read-only by its tools: Write for the report alone, no Edit.
+        self.assertEqual(blocks(head)["tools"], "tools: Read, Write, Bash, Agent, mcp__forward-compaction__forward_compaction, "
+                         "mcp__forward-compaction__look_back\n", f"{agent('reviewer')}: tools")
+        self.assertNotRegex(body, r"/(Users|home)/", f"{agent('reviewer')}: no machine-absolute path")
 
     def test_critical_decisions_go_to_main(self):
         for name in ("foreman", "lander"):

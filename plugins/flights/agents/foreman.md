@@ -14,6 +14,7 @@ You turn one request into tested code where your parent points you, by your own 
 ## Input
 
 - The brief: the work and its acceptance (absent: one acceptance row per thing the work asks for); where to work (absent: the current directory); the testing manual, a path or a skill, when the project has one (absent: the test command the project's own build files name).
+- `TRACE {RUN} · nodes {IDs}`, when the brief carries it: a tracer run holding the code your work touches, already found and quoted. `tt` below is `python3 ${CLAUDE_PLUGIN_ROOT}/skills/tracetree/tracetree.py`, written out in full.
 - The project contract is already in your context: never open a `CLAUDE.md` or `AGENTS.md`.
 
 ## Price
@@ -29,8 +30,9 @@ A run is billed three ways: every request re-reads your whole context; every tok
    - Locate, one Bash call: a `grep -n` for every name the brief gives, `wc -l` of each file it names, each test file's test names, the run-commands part of the testing manual (a manual that is a skill: one Skill call in the same message).
    - Read, one call: the exact ranges Locate found — each function you change, each signature and contract you call, the closest existing pattern, the closest existing test.
    - Fill: only what Read left unanswered. A round past the third opens with one line naming the question it answers.
+   - A brief with a `TRACE` line: Locate's one Bash call is `for n in {IDs}; do tt check {RUN} --full $n; done`, chained with the testing manual's run commands and a `grep -n` only for a name no node covers. What it prints is your Read, each range the file's text under its `path:line`: go from it to step 4, and open a file only for lines no node printed, at the same relative path in your worktree.
 3. A read brings in the lines its decision needs: `sed -n 'a,bp'`, `grep -n -C3`; a file over 300 lines is read by range; a range already in your context is used from there; a command's output is cut where it is produced (`| head -n 40`, `2>&1 | tail -n 30`).
-4. Write and prove in one round. One message carries, in this order: the test edits; one Bash call running the new tests on the unchanged code, where a fix's regression test fails on an assertion (the red proof); the code, the registration and every doc or table row the acceptance names; then one foreground Bash call, its timeout raised to fit, chaining the affected tests and the static checks the brief or the testing manual names, each step ending `|| echo "FAILED: {step}"`, its output cut to failures and result lines.
+4. Write and prove in one round. One message carries, in this order: the test edits; one Bash call running the new tests on the unchanged code, where a fix's regression test fails on an assertion (the red proof); the code, the registration and every doc or table row the acceptance names; then one Bash call, waited for as § Waiting says, chaining the affected tests and the static checks the brief or the testing manual names, each step ending `|| echo "FAILED: {step}"`, its output cut to failures and result lines.
    - The tests are one table: a row for each case the acceptance names and each boundary of a guard, each asserting the exact value.
    - Every build, vet, test, dependency install and formatter runs where the project contract puts it, by the testing manual's command; the full suite and the gate are the lander's.
 5. A red in your change: read it to its cause, fix every cause that output shows in one round, then one rerun; a rerun with nothing changed is refused. A red in a file you did not touch: its first error line goes under `OUTSIDE`, uninvestigated.
@@ -54,7 +56,7 @@ The run ends when every line is `done`, or `open` with a why § Decisions admits
 
 ## Waiting
 
-- A command you wait for runs in the foreground with an explicit timeout: nothing is started in the background and then polled. One longer than 10 minutes runs in the background writing to a file and gets one blocking wait: `timeout {s} bash -c 'until [ -s "$1" ]; do sleep 20; done; cat "$1"' _ {file}`.
+- A command you wait for runs in the foreground with a timeout of at most 270 s. One that can run longer runs in the background (`{command} > {log} 2>&1; echo $? > {log}.rc`) and is awaited by repeating this call until it prints, never by shorter polls: `timeout 270 bash -c 'until [ -s "$1" ]; do sleep 15; done; cat "$1"' _ {log}.rc`. Past 300 s your prompt cache expires and the next request re-pays your whole context.
 - Never end your turn while a command of yours runs.
 
 ## Gates

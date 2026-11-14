@@ -59,9 +59,9 @@ class WorkingTreeTest(unittest.TestCase):
         gone = [r for r in rows if r.startswith("GONE old_delta_file ")]
         self.assertEqual(len(gone), 1, "the uncommitted deletion")
         self.assertIn("c.py:1", gone[0], "an untracked file is searched")
-        hunters = [r for r in rows if r.startswith("PLAN HUNTER ")]
-        self.assertEqual(len(hunters), 1, rows)
-        self.assertIn("c.py", hunters[0], "an untracked file is counted")
+        diff_checkers = [r for r in rows if r.startswith("PLAN DIFF-CHECKER ")]
+        self.assertEqual(len(diff_checkers), 1, rows)
+        self.assertIn("c.py", diff_checkers[0], "an untracked file is counted")
 
     def test_only_uncommitted_work_is_no_empty_diff(self):
         self.base = self.git("rev-parse", "HEAD").strip()
@@ -76,7 +76,43 @@ class WorkingTreeTest(unittest.TestCase):
         self.assertIn(f"INVENTORY {self.base}..HEAD", p.stdout)
         self.assertIn("LEFT old_alpha_name ", p.stdout)
         self.assertNotIn("old_beta_name", p.stdout)
-        self.assertIn("PLAN HUNTERS none", p.stdout)
+        self.assertIn("PLAN DIFF-CHECKERS none", p.stdout)
+
+    def plan_rows(self, *args):
+        p = self.run_inv(*args)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        return [r for r in p.stdout.splitlines() if r.startswith(("PLAN DIFF-CHECKER", "PLAN OWN"))]
+
+    def test_cluster_size_and_cap_cut_the_diff_checkers(self):
+        for name in ("d.py", "e.py"):  # untracked: 1,055 production lines with a.py, b.py and c.py
+            self.write(name, "".join(f"w{i} = {i}\n" for i in range(300)))
+        abc, d, e = "455 lines · a.py b.py c.py", "300 lines · d.py", "300 lines · e.py"
+        for args, want in (
+            ((), [f"PLAN DIFF-CHECKER 1 · 755 lines · a.py b.py c.py d.py · tests none", f"PLAN DIFF-CHECKER 2 · {e} · tests none"]),
+            (("--cluster-lines", "300"), [f"PLAN DIFF-CHECKER 1 · {abc} · tests none", f"PLAN DIFF-CHECKER 2 · {d} · tests none",
+                                          f"PLAN DIFF-CHECKER 3 · {e} · tests none"]),
+            (("--cluster-lines", "300", "--max-diff-checkers", "1"),
+             ["PLAN DIFF-CHECKER 1 · 1055 lines · a.py b.py c.py d.py e.py · tests none"]),
+        ):
+            with self.subTest(args):
+                self.assertEqual(self.plan_rows(*args), want)
+
+    def test_own_lists_what_no_diff_checker_reads(self):
+        self.write("notes.md", "one\ntwo\nthree\n")  # untracked prose: no cluster takes it
+        checker = "PLAN DIFF-CHECKER 1 · 455 lines · a.py b.py c.py · tests none"
+        self.assertEqual(self.plan_rows(), [checker], "no --own, no PLAN OWN row")
+        self.assertEqual(self.plan_rows("--own"), [checker, "PLAN OWN 3 lines · notes.md"])
+
+    def test_paths_narrow_the_diff(self):
+        p = self.run_inv("--own", "--paths", "a.py")
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        rows = p.stdout.splitlines()
+        self.assertEqual(rows[0].split(" · ")[0], f"INVENTORY {self.base}..WORKTREE -- a.py")
+        self.assertIn("LEFT old_alpha_name ", p.stdout)
+        self.assertNotIn("old_beta_name", [r.split(" ")[1] for r in rows if r.startswith("LEFT ")])
+        self.assertEqual([r for r in rows if r.startswith("PLAN ")][1:3],
+                         ["PLAN DIFF-CHECKERS none · production diff 2 lines <= 400: the whole hunt is yours",
+                          "PLAN OWN 2 lines · a.py"])
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 ---
 name: tracetree
-description: Internal kit of flights:tracer and flights:sub-tracer — tracetree.py opens a trace run, stores each node's hops once, waits for the whole tree, checks every quote against the file and maps the components. Not invoked directly — ask flights:tracer; a finished run → /flights:tracer-use.
+description: Internal kit of flights:tracer and flights:sub-tracer — tracetree.py opens a trace run, stores each node's hops once, waits for the whole tree, checks every quote against the file and maps the components. Not invoked directly — ask flights:tracer; a finished run → /flights:trace-guide.
 visibility:
   visible-to:
     include: [flights:tracer, flights:sub-tracer]

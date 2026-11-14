@@ -9,7 +9,7 @@ Where Vocabulary, Runtime or On demand disagrees with the code on a path, comman
 - spec: the plugin's promised behaviour · `README.md`
 - installable plugin: the folder the install copies whole · `plugins/flights/`
 - marketplace: this repository's own listing of its one plugin, named `professor` · `.claude-plugin/marketplace.json`
-- flights family: the `flights:*` agents, the `/flights:{spec|doctor}` commands and the `flights:{lander-inventory|tracetree|tracer-use}` skills · `plugins/flights/agents/`, `plugins/flights/commands/`, `plugins/flights/skills/`
+- flights family: the `flights:*` agents, the `/flights:{spec|doctor}` commands and the `flights:{lander-inventory|tracetree|trace-guide}` skills · `plugins/flights/agents/`, `plugins/flights/commands/`, `plugins/flights/skills/`
 - hooks: the `SessionStart` and `SubagentStart` command hooks, both running the package · `plugins/flights/hooks/hooks.json`
 - package: the map, stdlib-only Python; `__init__.py`'s menu names every other file · `plugins/flights/codebase_map/__init__.py`
 - map agent types: the sub-agent types that receive the map, the one list · `plugins/flights/codebase_map/hook.py` (`MAP_AGENT_TYPES`)

@@ -1,14 +1,14 @@
 ---
-name: sub-lander
-description: FLIGHTS-LANDER-ONLY Traces changes past their diff — a range of inventory rows (names the diff removed that the tree still holds, matchers that dropped an old spelling) or a batch of threads (contracts, absence, hand-offs, concurrency). Spawned by flights:lander. Returns three-line flags.
+name: usage-checker
+description: FLIGHTS-REVIEW-ONLY Traces changes past their diff — a range of inventory rows (names the diff removed that the tree still holds, matchers that dropped an old spelling) or a batch of threads (contracts, absence, hand-offs, concurrency). Spawned by flights:lander and flights:reviewer. Returns three-line flags.
 visibility:
   visible-to:
-    include: [flights:lander]
+    include: [flights:lander, flights:reviewer]
 tools: Read, Grep, Glob, Bash
 model: haiku
 ---
 
-You follow each row or thread of your batch to its far side and flag it. The lander that sent you is still reviewing; your flag tells it where to look, and it judges.
+You follow each row or thread of your batch to its far side and flag it. The caller that sent you is still reviewing; your flag tells it where to look, and it judges.
 
 READ-ONLY: no edits, no git writes, no build, test or program run, no writes anywhere — no redirect `>` into any file, no copy of the diff on disk; read it through `git diff … | grep` or `sed -n`. Bash only for `grep`, `sed -n`, `git diff`, `git show`, `git log`. Read only under ROOT, plus the INVENTORY file.
 
@@ -22,7 +22,7 @@ ROOT, RANGE `{BASE}..WORKTREE`, then either:
   - `GONE {stem} ({file}) · deleted|renamed to {new} · … · {path:line}…`: the diff deleted or renamed that file, yet these lines still name it.
 - or per thread: `T{n} · {kind} · {symbol} · {diff path:line}`, CHANGED (old → new), START (paths to grep first). Kinds: CONTRACT, ABSENCE, HAND-OFF, CONCURRENT.
 
-## Walk
+## Check
 
 Budget: 25 tool calls for the whole batch.
 
@@ -49,4 +49,4 @@ then one line for everything cleared: `SAFE R{line} {path:A-B read}, R{line} …
 - SAFE: only for a row or thread whose every listed line you read, each intended or handled; the SAFE line names the ranges read. A line you only grepped makes it UNSURE.
 - UNSURE: anything else — a line unread, budget spent, a hop past 3, a grep or read that failed. WHY says which; LOOK names what is left to read. Never SAFE untraced.
 
-Severity and fixes belong to the lander; a flag carries neither.
+Severity and fixes belong to your caller; a flag carries neither.
