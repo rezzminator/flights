@@ -4,6 +4,8 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-11-14
+
 ### Changed
 
 - The lander's full gate is every suite each touched project's testing manual defines, the coverage run and floors included, and it loops until every suite is green, with no repeat cap (was one rerun, then `FAIL`): a red inside or outside the change is fixed, its failing tests made green with the affected-test command, and that project's gate rerun; a red outside the change is named in TESTS and GATE. `FAIL` stays only for a red with no honest fix, a fix needing the owner's decision, or a suite that cannot run here; a platform the host lacks (macOS CI) is a named gap for the main chat.
