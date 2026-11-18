@@ -34,13 +34,14 @@ A run is billed three ways: every request re-reads your whole context; every tok
 3. A read brings in the lines its decision needs: `sed -n 'a,bp'`, `grep -n -C3`; a file over 300 lines is read by range; a range already in your context is used from there; a command's output is cut where it is produced (`| head -n 40`, `2>&1 | tail -n 30`).
 4. Write and prove in one round. One message carries, in this order: the test edits; one Bash call running the new tests on the unchanged code, where a fix's regression test fails on an assertion (the red proof); the code, the registration and every doc or table row the acceptance names; then one Bash call, waited for as § Waiting says, chaining the affected tests and the static checks the brief or the testing manual names, each step ending `|| echo "FAILED: {step}"`, its output cut to failures and result lines.
    - The tests are one table: a row for each case the acceptance names and each boundary of a guard, each asserting the exact value.
-   - Every build, vet, test, dependency install and formatter runs where the project contract puts it, by the testing manual's command; the full suite and the gate are the lander's.
+   - Every build, vet, test, dependency install and formatter runs where the project contract puts it, by the testing manual's command; the gate past step 7's unit suites is the lander's.
 5. A red in your change: read it to its cause, fix every cause that output shows in one round, then one rerun; a rerun with nothing changed is refused. A red in a file you did not touch: its first error line goes under `OUTSIDE`, uninvestigated.
 6. Probe once the tests are green: one Bash call runs one throwaway script, kept outside the tree, that drives your change with the inputs your tests leave out and prints one line each, input then result:
    - for each absolute in the acceptance (`never`, `no`, `only`, `every`, `most`, a number): the input built to break it;
    - the other kind of input or code path the change can meet (a list where one item was expected, the cached path beside the fresh one), the empty input and the malformed one, the failure path;
    - the commonest real form, taken from the repository's own fixtures, recorded data or callers.
    A wrong result is fixed in the code and becomes a row of the test table, then the affected tests run once more. The printed lines are the return's `PROBES`.
+7. Before the return, run the whole unit suite of each project your files sit in, once, by the testing manual's command, waited for as § Waiting says; each result line joins `TESTS`. Read each red there to its cause, whatever file it sits in: one your change causes is fixed as step 5 says and that suite rerun; any other goes under `OUTSIDE` with its first error line.
 
 ## Work list
 
@@ -49,14 +50,14 @@ Work one write-and-prove round cannot hold, several items or one item across man
 1. Right after Locate, one Write call saves the list to a file outside the tree, named for the request (`worklist-{the request in three words}.md`), a line an item: every item the brief names and every item of each file it points you to, as `open {item} — {files}`. Items sharing files, a pattern or a test command form one group; the groups the acceptance names come first.
 2. A group takes one Read call, one Fill call where Read left a question, then step 4 once: all its items edited in one message and proven by one test call. The same edit at many sites is one script run over all of them.
 3. The message that opens the next group's Read rewrites the finished group's lines in the list: `done {item} — {test name or file:line}` or `open {item} — {why}`.
-4. Step 6 probes once, after the last group.
+4. Steps 6 and 7 run once, after the last group.
 5. forward-compaction's context notice is answered at the next group's end: call its tool with the list's path in `load_files`, then open the next group.
 
 The run ends when every line is `done`, or `open` with a why § Decisions admits.
 
 ## Waiting
 
-- A command you wait for runs in the foreground with a timeout of at most 270 s. One that can run longer runs in the background (`{command} > {log} 2>&1; echo $? > {log}.rc`) and is awaited by repeating this call until it prints, never by shorter polls: `timeout 270 bash -c 'until [ -s "$1" ]; do sleep 15; done; cat "$1"' _ {log}.rc`. Past 300 s your prompt cache expires and the next request re-pays your whole context.
+- A command you wait for runs in the foreground with a timeout of at most 170 s, its Bash `timeout` 175000 at most: the harness moves a call still running at 180 s to the background. One that can run longer runs in the background (`{command} > {log} 2>&1; echo $? > {log}.rc`) and is awaited by repeating this call until it prints, never by shorter polls: `timeout 170 bash -c 'until [ -s "$1" ]; do sleep 15; done; cat "$1"' _ {log}.rc`.
 - Never end your turn while a command of yours runs.
 
 ## Gates

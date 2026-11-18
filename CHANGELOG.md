@@ -4,6 +4,18 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ## [Unreleased]
 
+### Changed
+
+- The lander and `flights:reviewer` wait for their checkers inside their turn: with their own work done and a checker still out, each repeats one 170 s wait call, 4 times in a row at most, and a checker still out after that is waited for no longer (the lander takes its cluster or rows into its own hunt and names it in COVERAGE; the reviewer returns PARTIAL). Before, each ended its turn and relied on a checker's return to wake it: an adopter's lander that had lost three returns in a compaction ended its turn waiting for checkers that had already returned, and sat idle for 297 minutes. Over 338 past checker runs the longest took 295 s.
+- After a compaction the lander and the reviewer take which checkers are still out from the compaction's own agent list, never from their frontier, and read a returned checker's result with `look_back` where they ran it again.
+- The lander and both foremen wait in slices of at most 170 s (was 270 s): Claude Code moves a sub-agent's foreground call that is still running at 180 s to the background, so a 270 s wait never ended in the foreground; one landing had 14 calls moved that way. The lander's command rule names the Bash `timeout` it may pass and shows the foreground install chain with a 600 s timeout it replaces.
+- Both foremen run the whole unit suite of each project their files sit in once before they return, read every red there to its cause and fix the ones their change causes; any other goes under `OUTSIDE`. Before, a foreman ran its affected tests alone, and an adopter's lander met 8 red tests in its first full gate.
+- The lander's `rm` names a literal path, never one built from a variable or a substitution: Claude Code holds such a call for a person's approval even with permission prompts off, and one did so for 52 minutes in an unattended landing.
+
+### Fixed
+
+- The inventory script puts a test file in one `PLAN DIFF-CHECKER` row, the first cluster that claims it (was every cluster sharing its directory).
+
 ## [2.0.0] — 2026-11-14
 
 ### Changed
