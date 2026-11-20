@@ -2,7 +2,7 @@
 
 Every release of flights. Versions follow [semantic versioning](https://semver.org); each release is the `main` commit tagged `flights--v<version>`, with a GitHub release carrying the section below.
 
-## [Unreleased]
+## [2.0.1] — 2026-11-20
 
 ### Changed
 
