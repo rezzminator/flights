@@ -256,8 +256,9 @@ def plan(wt, rev, new, specs, cluster_lines, max_diff_check, with_own):
         for i, c in enumerate(clusters, 1):
             dirs = {f.rsplit("/", 1)[0] if "/" in f else "." for f, _ in c}
             base_names = {"test-" + f.rsplit("/", 1)[-1] for f, _ in c}
-            t = sorted({x for d in dirs for x in tests.get(d, [])}
-                       | {x for xs in tests.values() for x in xs if x.rsplit("/", 1)[-1] in base_names})
+            # a test file goes to the first cluster that claims it: one file, one diff-checker
+            t = sorted(({x for d in dirs for x in tests.get(d, [])}
+                        | {x for xs in tests.values() for x in xs if x.rsplit("/", 1)[-1] in base_names}) - taken)
             taken.update(t); taken.update(f for f, _ in c)
             rows.append(f"PLAN DIFF-CHECKER {i} · {sum(n for _, n in c)} lines · {' '.join(f for f, _ in c)}"
                         f" · tests {' '.join(t) if t else 'none'}\n")

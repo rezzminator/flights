@@ -97,6 +97,13 @@ class WorkingTreeTest(unittest.TestCase):
             with self.subTest(args):
                 self.assertEqual(self.plan_rows(*args), want)
 
+    def test_a_test_file_joins_one_diff_checker(self):
+        for name in ("d.py", "e.py"):  # with a.py, b.py and c.py: two clusters in one directory
+            self.write(name, "".join(f"w{i} = {i}\n" for i in range(300)))
+        self.write("test_shared.py", "def test_x():\n    assert True\n")  # that directory's one test file
+        self.assertEqual(self.plan_rows(), ["PLAN DIFF-CHECKER 1 · 755 lines · a.py b.py c.py d.py · tests test_shared.py",
+                                            "PLAN DIFF-CHECKER 2 · 300 lines · e.py · tests none"])
+
     def test_own_lists_what_no_diff_checker_reads(self):
         self.write("notes.md", "one\ntwo\nthree\n")  # untracked prose: no cluster takes it
         checker = "PLAN DIFF-CHECKER 1 · 455 lines · a.py b.py c.py · tests none"

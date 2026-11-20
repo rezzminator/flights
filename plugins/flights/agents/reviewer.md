@@ -59,7 +59,9 @@ Read each changed function of your share whole, plus the unchanged helpers it re
 - Verify every candidate before it enters the report, a batch in one call: its line ±15 lines (`grep -n '' {file} | sed -n '{A},{B}p'` under `echo` headers). The quoted line must be on disk at that number and the failure must follow from what you read; otherwise RULED OUT with that line. A premise the tree cannot prove stays named on the finding; no budget left → UNCHECKED.
 - Two candidates on one defect are one finding. Rank CRITICAL, HIGH, MEDIUM, LOW: a boundary that fails open, data loss, a wrong value shown as right > a crash > a cost paid on every call > what a person sees > a log line.
 
-Keep making calls while checkers are out: your share, then each returned batch's verification, then the report with every section filled but the checkers still out. End your turn only when all of that is done; each return re-invokes you. A checker that never returns leaves its rows OPEN in COVERAGE and the review PARTIAL.
+Keep making calls while checkers are out: your share, then each returned batch's verification, then the report with every section filled but the checkers still out. With all of that done and a checker still out, wait inside your turn, never by ending it: a checker's return reaches you when a call of yours ends, so repeat `timeout 170 bash -c 'until [ -e "$1" ]; do sleep 15; done' _ {INV}.wait{n}` (`{n}` the wait's number, a path nothing writes: the call is the wait) until every checker has returned, 4 times in a row at most. A checker still out then leaves its rows OPEN in COVERAGE and the review PARTIAL.
+
+After any compaction, take which checkers are out from the wake's `## Agents, listed at install`, never from your frontier: a checker listed `running` is out; any other, listed or not, has returned, and its return is in the wake or one `look_back` of its id or description away. Never re-run or wait for a returned checker.
 
 ## 4. Report — REPORT_PATH
 

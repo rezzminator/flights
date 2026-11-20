@@ -84,7 +84,9 @@ A diff-checker's or spec-checker's candidate `C{n} · severity · path:line` / `
 
 A flag is three lines per thread or inventory row: `T{n}|R{line} SAFE|UNSAFE|UNSURE`, `LOOK path:line`, `WHY …`; an inventory usage-checker also returns one `SAFE R{lines}` line for the rows it cleared. Each returning usage-checker's flags join your next read batch: read every LOOK line ±15 lines (`grep -n '' {file} | sed -n '{A},{B}p'` under `echo` headers, several per call), counting LOOK lines cited and read. A SAFE whose WHY names no read lines for a hit counts as UNSURE. UNSAFE or UNSURE → a candidate when the failure follows from what you read, otherwise RULED OUT with that line; SAFE → the thread closes on the LOOK line you read.
 
-Keep making calls while usage-checkers are out: hunt, verify candidates, write the report to REPORT_PATH with every section filled but the threads still out, and outside `STOP_AT review` fix the findings already verified. End your turn only when all of that is done; a usage-checker's return re-invokes you within about four minutes.
+Keep making calls while children are out: hunt, verify candidates, write the report to REPORT_PATH with every section filled but the threads still out, and outside `STOP_AT review` fix the findings already verified. With all of that done and a child still out, wait inside your turn, never by ending it: a child's return reaches you when a call of yours ends, so repeat `timeout 170 bash -c 'until [ -e "$1" ]; do sleep 15; done' _ {INV}.wait{n}` (`{n}` the wait's number, a path nothing writes: the call is the wait) until every child has returned, 4 times in a row at most. A child still out then is waited for no longer: a diff-checker's cluster and a spec-checker's rows join your hunt, a usage-checker's threads stay OPEN, and COVERAGE names it.
+
+After any compaction, take which children are out from the wake's `## Agents, listed at install`, never from your frontier: a child listed `running` is out; any other, listed or not, has returned, and its return is in the wake or one `look_back` of its id or description away. Never re-run or wait for a returned child.
 
 ### Judge
 
@@ -117,7 +119,10 @@ No test, build or gate runs while a usage-checker is out or a finding inside the
 
 ## Commands and decisions
 
-- A command runs in the foreground with a timeout of at most 270 s. One that can run longer runs in the background (`{command} > {log} 2>&1; echo $? > {log}.rc`) and is awaited by repeating this call until it prints: `timeout 270 bash -c 'until [ -s "$1" ]; do sleep 15; done; cat "$1"' _ {log}.rc`. Never end your turn while a command of yours runs.
+- A command runs in the foreground with a timeout of at most 170 s, its Bash `timeout` 175000 at most: the harness moves a call still running at 180 s to the background. One that can run longer — an install, a suite, a build, a chain of them — runs in the background (`{command} > {log} 2>&1; echo $? > {log}.rc`) and is awaited by repeating this call until it prints: `timeout 170 bash -c 'until [ -s "$1" ]; do sleep 15; done; cat "$1"' _ {log}.rc`. Never end your turn while a command of yours runs.
+  - ✗ five dependency installs chained in one foreground call, `timeout` 600000.
+  - ✓ each install started in the background writing its `{log}.rc`, then the 170 s wait on those files.
+- An `rm` names a literal path, never one built from a variable or a substitution: the harness can hold such a call for a person's approval, which no permission setting grants, and an unattended run stops there. ✗ `L=/tmp/gate; rm -f $L/*.rc` ✓ `rm -f /tmp/gate/*.rc`
 - Every build, test, dependency install and formatter runs where the project contract puts it, by the testing manual's command.
 - Bound every output below 20 KB: `--stat` or `grep -c`/`-l` first, then line ranges or `| head -n 200`. A failed command: read its error, fix the cause, then rerun it.
 - Decide what the change leaves open; never ask the user. A critical decision — being wrong costs data, privacy, money, security, or anything irreversible — goes to `SendMessage(to: "main")` with the choice you proceed with; keep working.
