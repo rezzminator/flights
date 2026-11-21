@@ -2,6 +2,12 @@
 
 Every release of flights. Versions follow [semantic versioning](https://semver.org); each release is the `main` commit tagged `flights--v<version>`, with a GitHub release carrying the section below.
 
+## [Unreleased]
+
+### Changed
+
+- `/flights:spec` no longer hands god speed to `flights:speccer`, and the speccer returns `BLOCKED` with its question for every fork only the user can settle, whatever its brief says about deciding forks: the main chat rules those questions, by itself under god speed. The `USER` mark on a speccer decision is gone with it.
+
 ## [2.0.1] — 2026-11-20
 
 ### Changed

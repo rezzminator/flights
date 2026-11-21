@@ -47,7 +47,7 @@ Write `requirements.md`:
 
 ## S4 — Hand off to the speccer
 
-Spawn one `Agent(subagent_type: "flights:speccer")` whose prompt names `requirements.md`, the flight directory, the tracer `RUN` paths, each touched unit's testing manual path, and god speed when the user's prompt carried it. End your message; the return arrives on its own.
+Spawn one `Agent(subagent_type: "flights:speccer")` whose prompt names `requirements.md`, the flight directory, the tracer `RUN` paths, each touched unit's testing manual path, and never god speed: its questions come back to you. End your message; the return arrives on its own.
 
 ## S5 — Close every gap
 
