@@ -4,6 +4,8 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ## [Unreleased]
 
+## [2.0.2] — 2026-11-21
+
 ### Changed
 
 - `/flights:spec` no longer hands god speed to `flights:speccer`, and the speccer returns `BLOCKED` with its question for every fork only the user can settle, whatever its brief says about deciding forks: the main chat rules those questions, by itself under god speed. The `USER` mark on a speccer decision is gone with it.
