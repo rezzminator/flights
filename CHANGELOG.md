@@ -4,6 +4,10 @@ Every release of flights. Versions follow [semantic versioning](https://semver.o
 
 ## [Unreleased]
 
+### Changed
+
+- `flights:foreman-sonnet` runs at effort medium, where it ran at high: on one 42-row fix job, two runs at medium cost 30% less than two at high (4.77 against 6.86 USD mean), each closing every row with both packages' tests passing. `effortControl` still raises its effort one step at a failing test run, up to xhigh.
+
 ## [2.0.2] — 2026-11-21
 
 ### Changed

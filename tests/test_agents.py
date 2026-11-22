@@ -30,7 +30,6 @@ SONNET_FOREMAN_LINES = {
                    "are settled. Pass what flights:foreman takes. main chat → here → main chat → flights:lander → gitter. "
                    "Returns DONE or PARTIAL, decisions, files, test lines, outside changes.\n",
     "model": "model: sonnet\n",
-    "effort": "effort: high\n",
 }
 FOREMAN_KEYS = ["name", "description", "model", "effort", "effortControl", "tools"]
 EFFORT_CONTROL = "effortControl:\n  floor: medium\n  ceiling: xhigh\n"
@@ -101,7 +100,7 @@ class ShippedNamesTest(unittest.TestCase):
 class FlightContractsTest(unittest.TestCase):
     def test_cast_tiers(self):
         cast = {
-            "foreman": ("opus", "medium"), "foreman-sonnet": ("sonnet", "high"), "lander": ("opus", "medium"),
+            "foreman": ("opus", "medium"), "foreman-sonnet": ("sonnet", "medium"), "lander": ("opus", "medium"),
             "diff-checker": ("opus", None), "spec-checker": ("sonnet", None), "usage-checker": ("haiku", None),
             "speccer": ("opus", "xhigh"), "reviewer": ("opus", "medium"),
             "tracer": ("sonnet", "high"), "sub-tracer": ("haiku", "low"),

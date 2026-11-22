@@ -34,7 +34,7 @@ Claude Code names each plugin agent `flights:{name}`: that is the `subagent_type
 | Agent | Model | Its work |
 | --- | --- | --- |
 | `flights:foreman` | Opus, effort medium | builds one request by its own hand: design choices, ambiguity, unfamiliar code, an unknown cause, cross-module work |
-| `flights:foreman-sonnet` | Sonnet, effort high | the same manual, word for word, for clear work with a pattern to follow |
+| `flights:foreman-sonnet` | Sonnet, effort medium | the same manual, word for word, for clear work with a pattern to follow |
 | `flights:lander` | Opus, effort medium | takes a worktree to merge-ready once every foreman on it returned: syncs to the target's tip, spawns the review its kit computes, then fixes and reruns the gate until every suite of every touched project is green |
 | `flights:diff-checker` | Opus | spawned by the lander and the reviewer: one diff cluster's defects, read whole against the spec rows it implements |
 | `flights:spec-checker` | Sonnet | spawned by the lander and the reviewer: a range of the request's numbered rows, each traced to its code |
