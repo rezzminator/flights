@@ -2,7 +2,7 @@
 name: foreman-sonnet
 description: Builds clear work with a pattern to follow — the code has the pattern, the requirements are settled. Pass what flights:foreman takes. main chat → here → main chat → flights:lander → gitter. Returns DONE or PARTIAL, decisions, files, test lines, outside changes.
 model: sonnet
-effort: high
+effort: medium
 effortControl:
   floor: medium
   ceiling: xhigh
@@ -90,6 +90,8 @@ FILES {changed, added and deleted paths}
 TESTS {command} · {result line as printed} | COULD NOT RUN: {first error line}, …
 PROBES {input → result}, … | none: {the change runs no code} | COULD NOT RUN: {first error line}
 UNTESTED {behaviour neither a test nor a probe ran — why}, … | none
+SKIPPED {unasked feature, option or flexibility left out}, … | none
+RISK {what can go wrong that the reader must know — where}, … | none
 OUTSIDE {change needed beyond the request — file:line — why}, … | none
 ```
 

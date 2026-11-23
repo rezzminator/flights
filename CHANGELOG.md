@@ -2,7 +2,16 @@
 
 Every release of flights. Versions follow [semantic versioning](https://semver.org); each release is the `main` commit tagged `flights--v<version>`, with a GitHub release carrying the section below.
 
-## [Unreleased]
+## [2.1.0] — 2026-11-23
+
+### Added
+
+- The plugin ships the coding, testing and life-cycle rules in `rules/` and links them itself: at each main-chat `SessionStart` a new hook links each into `$CLAUDE_CONFIG_DIR/rules` (else `~/.claude/rules`) as `flights-{stem}.md`, re-points a link left by an older version, removes one whose rule is gone and leaves a regular file of that name alone, saying so. The chat hears one line when a link changed and `Flights rules not installed: {reason}` when it could not link; the rules load from the next chat. Professor's `pfm install` no longer ships these rules.
+
+### Changed
+
+- `flights:foreman-sonnet` runs at effort medium, where it ran at high: on one 42-row fix job, two runs at medium cost 30% less than two at high (4.77 against 6.86 USD mean), each closing every row with both packages' tests passing. `effortControl` still raises its effort one step at a failing test run, up to xhigh.
+- The coding rule gains three lines: list every place a change must reach before the first edit, mark a known-limit shortcut with a `shortcut: {the limit}, {when to upgrade}` comment, and close a reply on written code with one or two lines on what was skipped or left unchecked and any risk. Both foremen's return block gains `SKIPPED` (an unasked feature, option or flexibility left out) and `RISK` (what can go wrong that the reader must know, and where) after `UNTESTED`.
 
 ## [2.0.2] — 2026-11-21
 
