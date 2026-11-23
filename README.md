@@ -10,7 +10,7 @@
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757)](https://code.claude.com/docs/en/plugins)
 [![Built with Professor](https://img.shields.io/badge/built%20with-Professor-8A2BE2)](https://github.com/rezzminator/professor)
 
-**Contents:** [Why](#why) · [Quick start](#quick-start) · [The agents](#the-agents) · [The map](#the-map) · [How it works](#how-it-works) · [Logs](#logs) · [Limits](#limits) · [Help](#help) · [Contributing](#contributing) · [License](#license) · [Changelog](./CHANGELOG.md)
+**Contents:** [Why](#why) · [Quick start](#quick-start) · [The agents](#the-agents) · [The map](#the-map) · [How it works](#how-it-works) · [The rules](#the-rules) · [Logs](#logs) · [Limits](#limits) · [Help](#help) · [Contributing](#contributing) · [License](#license) · [Changelog](./CHANGELOG.md)
 
 </div>
 
@@ -102,9 +102,19 @@ web/: render, VERSION, Page
 - **A failure is said.** When the map cannot be built — no commit yet, `git` missing or failing — the loop receives one line, `Codebase map unavailable: {reason}`, never nothing. When a worktree's changed folders cannot be read, it gets the full map and the git error is logged as a warning. Outside a git repository there is no codebase, and the loop receives nothing.
 - **No settings.** There is nothing to configure.
 
+## The rules
+
+The plugin ships three rule files in `rules/`: `coding.md`, `testing.md` and `life-cycle.md`. Claude Code has no plugin component for rules, so at each main-chat `SessionStart` the hook links each one into the user's rules folder, `$CLAUDE_CONFIG_DIR/rules`, else `~/.claude/rules`, as the symlink `flights-{stem}.md` (`flights-coding.md`, `flights-testing.md`, `flights-life-cycle.md`) pointing at the installed plugin's `rules/{stem}.md`.
+
+- **What flights owns.** Every symlink named `flights-*.md` directly in that folder, and nothing else there. A missing link is made (the folder too); one pointing elsewhere — an older plugin version — is re-pointed by a temporary link renamed over it, so a chat starting at the same moment never sees a gap; one whose rule the plugin no longer ships is removed. A regular file or folder named `flights-*.md` is never touched: the chat is told it stands in the way.
+- **When they load.** A rule a hook links at a chat's start loads from the next chat: the first chat after an install or update links them, the next one loads them.
+- **What the chat hears.** Nothing when every link was already right; one line naming the links made, re-pointed or removed when one changed; one line `Flights rules not installed: {reason}`, logged, when they could not be linked. The hook exits 0 on every path.
+- **Who receives them.** Every loop, unless the rule-control plugin is installed: each rule's `visible-to` frontmatter then narrows its audience; without rule-control that key does nothing.
+- **Uninstalling** leaves the links behind, dangling and loading nothing; remove `flights-*.md` from the rules folder by hand.
+
 ## Logs
 
-Rows go to `$PLUGIN_LOG_DIR/flights/`, else `$HOME/.local/state/flights/logs/`: `errors.jsonl` for every unavailable map and every build that failed, `warnings.jsonl` for each worktree whose changed folders could not be read (`flight-folders-unread`) and each cache prune that failed (`cache-prune-failed`), `debug.jsonl` for each cache hit, miss, build and prune.
+Rows go to `$PLUGIN_LOG_DIR/flights/`, else `$HOME/.local/state/flights/logs/`: `errors.jsonl` for every unavailable map, every build that failed and every time the rules could not be linked (`rules-not-installed`), `warnings.jsonl` for each worktree whose changed folders could not be read (`flight-folders-unread`) and each cache prune that failed (`cache-prune-failed`), `debug.jsonl` for each cache hit, miss, build and prune.
 
 ## Limits
 

@@ -90,6 +90,8 @@ FILES {changed, added and deleted paths}
 TESTS {command} · {result line as printed} | COULD NOT RUN: {first error line}, …
 PROBES {input → result}, … | none: {the change runs no code} | COULD NOT RUN: {first error line}
 UNTESTED {behaviour neither a test nor a probe ran — why}, … | none
+SKIPPED {unasked feature, option or flexibility left out}, … | none
+RISK {what can go wrong that the reader must know — where}, … | none
 OUTSIDE {change needed beyond the request — file:line — why}, … | none
 ```
 
