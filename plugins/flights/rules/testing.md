@@ -12,6 +12,7 @@ Binds every agent writing tests.
 - Tests differing only in a literal are one table-driven test.
 - Assert the exact value telling correct from broken: the whole string or parsed field, never a substring, existence, truthiness, bare length, status or exit code.
 - Expect a literal, fixture or golden, never a value the code under test computed.
+- Name no entity the product reads from a directory, registry or manifest outside the code under test (skill, command, agent, rule, plugin, template, row): the test enumerates that input, never the code's output, and asserts it non-empty and each member; a name its fixture created stays a literal.
 - Watch every test fail once: a regression on the unfixed code, else by breaking one statement it guards.
 - A fixture never performs a step the code under test owns.
 - An absence assertion sits beside a presence assertion proving the subject ran.

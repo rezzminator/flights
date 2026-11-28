@@ -2,6 +2,13 @@
 
 Every release of flights. Versions follow [semantic versioning](https://semver.org); each release is the `main` commit tagged `flights--v<version>`, with a GitHub release carrying the section below.
 
+## [2.2.0] — 2026-11-28
+
+### Added
+
+- The life-cycle rule's first rule gains a build announcement: before every build's first dispatch or edit, flight or not, the main chat's reply opens by stating plainly what will be built — first any difference from the user's literal ask, then what it does, when it runs and what stays as it is — and then builds, without waiting for approval. No rule number moves.
+- The testing rule gains one line: a test names no entity the product reads from a directory, registry or manifest outside the code under test (a skill, command, agent, rule, plugin, template or row); it enumerates that input, never the code's output, and asserts it non-empty and each member. A name the test's own fixture created stays a literal.
+
 ## [2.1.0] — 2026-11-23
 
 ### Added
